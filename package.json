@@ -7,7 +7,9 @@
   "typings": "typings/index.d.ts",
   "files": [
     "dist",
-    "typings"
+    "typings",
+    "images",
+    "js"
   ],
   "scripts": {
     "lint": "eslint --fix --ext .ts src --quiet",
