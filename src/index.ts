@@ -39,6 +39,16 @@ import {
     useStore,
 } from "./core";
 
+export * from "./core/types";
+export * from "./core/constant";
+export {
+    emitterAndTaker, SubscriberSort,
+    equals,
+    isHas,
+    isNotEmpty,
+    strFormat
+} from "jsmethod-extra"
+
 const [, , getAllItemHandler] = useStore();
 
 /**
@@ -72,14 +82,16 @@ export async function restartUploadFileHandler(
  * @param event 事件对象
  */
 channel.port2.onmessage = async function (event) {
-    const {uploadFile} = event.data, {name} = uploadFile as File;
+    const {fileName: name} = event.data;
 
-    const suffix = `${name.slice(name.indexOf("."))}`
+    const suffix = `${name.slice(name.indexOf("."))}`;
     await upConcurrentHandler(100);
 
-    const getNameHandler = () => `${(Math.random() * 10000000000) | 0}${+new Date()}${(Math.random() * 10000000000) | 0}`
-    channel.port1.postMessage(`${getNameHandler()}.${suffix}`)
-}
+    const getNameHandler = () =>
+            `${(Math.random() * 100000) | 0}${+new Date()}${(Math.random() * 100000) | 0}`,
+        newFileName = getNameHandler();
+    channel.port2.postMessage(`${newFileName}${suffix}`);
+};
 
 /**
  * 相同文件 是否继续下载
@@ -170,7 +182,10 @@ export async function computedBreakPointProgressHandler(
     step: number,
 ) {
     // 从这里 判断是否断点续传
-    const res = await calculateUploaderConfig.current!.req.listFilesReq!(calculationHashCode);
+    const res =
+        await calculateUploaderConfig.current!.req.listFilesReq!(
+            calculationHashCode,
+        );
     if (res.success && isNotEmpty(res.data)) {
         const {length} = res.data;
         // 断点续传状态
@@ -380,9 +395,6 @@ function checkUploaderConfigReqHandler() {
  */
 function uploadFileConfigHandler() {
     checkUploaderConfigReqHandler();
-    uploadHandler.config(uploaderDefaultConfig);
-
-    checkUploaderConfigReqHandler();
 }
 
 /**
@@ -402,7 +414,10 @@ export async function startUploadFileHandler(
     uploadFileConfigHandler();
 
     // 进行请求 实现秒传
-    const res = await calculateUploaderConfig.current!.req.verifyFileExistReq!(calculationHashName);
+    const res =
+        await calculateUploaderConfig.current!.req.verifyFileExistReq!(
+            calculationHashName,
+        );
     if (res.success) {
         // 从这里 修改 秒传状态
         emitUploadProgressState(UploadProgressState.QuickUpload, uniqueCode);
@@ -449,7 +464,7 @@ function sameFileUploadingHandler(
         );
 
     // 添加到数组中
-    uniqueCodeArr.push(uniqueCode);
+    uniqueCodeArr!.push(uniqueCode);
 }
 
 /**
@@ -498,7 +513,11 @@ function wakeupNewQueueElementHandler() {
  * @param uniqueCode 每个文件唯一的code
  * @param event 事件对象
  */
-async function eventChangeCallbackHandler(uploadFile: File, uniqueCode: string, event: MessageEvent<string>) {
+async function eventChangeCallbackHandler(
+    uploadFile: File,
+    uniqueCode: string,
+    event: MessageEvent<string>,
+) {
     // 开始尝试 计算新的
     wakeupNewQueueElementHandler();
 
@@ -547,10 +566,19 @@ function asyncWebWorkerActionHandler(uploadFile: File, uniqueCode: string) {
             flag: "file",
         });
         // 添加订阅事件
-        calculateNameWorker.current!.onmessage = eventChangeCallbackHandler.bind(null, uploadFile, uniqueCode);
+        calculateNameWorker.current!.onmessage = eventChangeCallbackHandler.bind(
+            null,
+            uploadFile,
+            uniqueCode,
+        );
     } else {
+        channel.port1.postMessage({fileName: uploadFile.name})
         // 使用 MessageChannel 来兼容 web Worker
-        channel.port1.onmessage = eventChangeCallbackHandler.bind(null, uploadFile, uniqueCode);
+        channel.port1.onmessage = eventChangeCallbackHandler.bind(
+            null,
+            uploadFile,
+            uniqueCode,
+        );
     }
 }
 
@@ -610,7 +638,10 @@ export function uploadHandler(
  * @param config 配置文件
  */
 uploadHandler.config = function (config: UploadConfigType) {
-    const req = valueOrDefault(calculateUploaderConfig.current && calculateUploaderConfig.current?.req, {})
+    const req = valueOrDefault(
+        calculateUploaderConfig.current && calculateUploaderConfig.current?.req,
+        {},
+    );
 
     // 全局设置 配置文件
     calculateUploaderConfig.current = Object.assign(
@@ -619,7 +650,8 @@ uploadHandler.config = function (config: UploadConfigType) {
         config,
     );
 
-    calculateUploaderConfig.current!.req = req!;
+    if (isNotEmpty(Object.keys(req!)))
+        calculateUploaderConfig.current!.req = req!;
 };
 
 // 直接运行的方法

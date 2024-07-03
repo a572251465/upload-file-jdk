@@ -10,7 +10,7 @@ import {QueueElementBase, UploadProgressState} from "./types";
 import {
     calculateNameWorker,
     globalInfoMapping,
-    globalProgressState
+    globalProgressState,
 } from "./variable";
 import {UPLOADING_FILE_SUBSCRIBE_DEFINE} from "./constant";
 import {Logger} from "./Logger";
@@ -237,21 +237,22 @@ export async function upConcurrentHandler(unit: number) {
  */
 (function () {
     // 判断 work 是否已经加载完
-    if (isEmpty(calculateNameWorker.current) && !isUndefined(Worker)) {
+    // @ts-ignore
+    if (isEmpty(calculateNameWorker.current) && !isUndefined(Worker) && window.calculateNameWorker) {
         try {
-            calculateNameWorker.current = new Worker(
-                `${valueOrDefault(
-                    (
-                        window as unknown as {
-                            uploadJdk: { publicPath: string };
-                        }
-                    )?.uploadJdk?.publicPath,
-                    "",
-                )}/calculateNameWorker.js`,
-            );
-
+            const workerPath = `${valueOrDefault(
+                (
+                    window as unknown as {
+                        uploadJdk: { publicPath: string };
+                    }
+                )?.uploadJdk?.publicPath,
+                "",
+            )}/calculateNameWorker.js`;
+            calculateNameWorker.current = new Worker(workerPath);
         } catch (e) {
-            Logger.warning("不兼容web worker, 通过 MessageChannel 做兼容处理");
+            Logger.warning("不兼容web worker 或 未引入calculateNameWorker.js, 通过 MessageChannel 做兼容处理");
         }
+    } else {
+        Logger.warning("不兼容web worker 或 未引入calculateNameWorker.js, 通过 MessageChannel 做兼容处理");
     }
 })();

@@ -16,7 +16,7 @@ export function createFileChunks(file: File, fileName: string) {
     // 分割文件个数 以及每次切割大小
     const [chunkCount, CHUNK_SIZE] = calculateChunkCount(file.size);
     for (let i = 0; i < chunkCount; i++) {
-        const chunk = file.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+        let chunk = file.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
         chunks.push({
             chunk,
             chunkFileName: `${fileName}-${i}`,
