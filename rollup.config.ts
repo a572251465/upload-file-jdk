@@ -23,7 +23,7 @@ export default [
             commonjs(),
             babel({babelHelpers: 'bundled'}),
             typescript(),
-            // terser()
+            terser()
         ]
     },
     {
