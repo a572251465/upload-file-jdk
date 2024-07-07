@@ -13,6 +13,7 @@ declare enum UploadProgressState {
     Pause = "Pause",
     PauseRetry = "PauseRetry",
     Canceled = "Canceled",
+    RequestError = "RequestError",
     Retry = "Retry",
     NetworkDisconnected = "NetworkDisconnected",
     RetryFailed = "RetryFailed",
@@ -33,11 +34,13 @@ type QueueElementBase = Partial<{
     retryTimes: number;
     networkDisconnectedRetryTimes: number;
     pauseIndex: number;
+    requestErrorMsg: string;
 }>;
 type UploadConfigType = Partial<{
     maxRetryTimes: number;
     concurrentLimit: number;
     persist: boolean;
+    fileSizeLimitRules: Array<[number, number]>;
 }> & {
     req: {
         listFilesReq: IListFilesReq | null;
@@ -52,21 +55,34 @@ interface CurrentType<T = null> {
 type ProgressReturnType = [baseDir: string, fileName: string];
 type ICommonResponse<T = unknown> = {
     data: T;
-    message: string;
+    message?: string;
+    msg?: string;
     success: boolean;
     code: number;
 };
+declare enum HTTPEnumState {
+    OK = "200"
+}
 type IListFilesReq = (calculationHashCode: string) => Promise<ICommonResponse<Array<string>>>;
-type ISectionUploadReq = (calculationHashCode: string, chunkFileName: string, formData: FormData) => Promise<ICommonResponse>;
+type ISectionUploadReq = (calculationHashCode: string, chunkFileName: string, formData: FormData) => Promise<ICommonResponse<boolean>>;
 type IMergeUploadReq = (calculationHashCode: string, fileName: string) => Promise<ICommonResponse>;
-type IVerifyFileExistReq = (calculationHashName: string) => Promise<ICommonResponse>;
+type IVerifyFileExistReq = (calculationHashName: string) => Promise<ICommonResponse<boolean>>;
 
 declare const UploadProgressStateText: Record<Required<UploadProgressState>, string>;
-declare const CHUNK_SIZE_30: number;
-declare const CHUNK_SIZE_100: number;
+declare const fileSizeLimitDefaultRules: Array<[number, number]>;
 declare const UPLOADING_FILE_SUBSCRIBE_DEFINE = "UPLOADING_FILE_SUBSCRIBE_DEFINE";
 declare const REVERSE_CONTAINER_ACTION = "REVERSE_CONTAINER_ACTION";
 declare const PERSIST_LOCAL_KEY = "big.file.upload.state";
+declare const SERVER_REQUEST_FAIL_MSG = "fetch fail, \u8BF7\u68C0\u67E5\u670D\u52A1";
+
+/**
+ * 固定小数点的方法
+ *
+ * @author lihh
+ * @param size 大小
+ * @param count 个数
+ */
+declare function toFixedHandler(size: number, count: number): number;
 
 /**
  * 重新 上传文件
@@ -144,6 +160,7 @@ declare function startUploadFileHandler(file: File, calculationHashName: string,
 declare function uploadHandler(uploadFile: File, callback?: (arr: ProgressReturnType) => void): Promise<ProgressReturnType>;
 declare namespace uploadHandler {
     var config: (config: UploadConfigType) => void;
+    var dynamicFileSizeLimitRules: (limitRules: Array<[number, number]>) => void;
 }
 
-export { CHUNK_SIZE_100, CHUNK_SIZE_30, type ChunkFileType, type CurrentType, type ICommonResponse, type IListFilesReq, type IMergeUploadReq, type ISectionUploadReq, type IVerifyFileExistReq, PERSIST_LOCAL_KEY, type ProgressReturnType, type QueueElementBase, REVERSE_CONTAINER_ACTION, UPLOADING_FILE_SUBSCRIBE_DEFINE, type UploadConfigType, UploadProgressState, UploadProgressStateText, clearCacheStateHandler, computedBreakPointProgressHandler, generateTask, progressNormalOrErrorCompletionHandler, restartUploadFileHandler, sameFileNeedProceedHandler, splitFileUploadingHandler, startUploadFileHandler, uploadHandler };
+export { type ChunkFileType, type CurrentType, HTTPEnumState, type ICommonResponse, type IListFilesReq, type IMergeUploadReq, type ISectionUploadReq, type IVerifyFileExistReq, PERSIST_LOCAL_KEY, type ProgressReturnType, type QueueElementBase, REVERSE_CONTAINER_ACTION, SERVER_REQUEST_FAIL_MSG, UPLOADING_FILE_SUBSCRIBE_DEFINE, type UploadConfigType, UploadProgressState, UploadProgressStateText, clearCacheStateHandler, computedBreakPointProgressHandler, fileSizeLimitDefaultRules, generateTask, progressNormalOrErrorCompletionHandler, restartUploadFileHandler, sameFileNeedProceedHandler, splitFileUploadingHandler, startUploadFileHandler, toFixedHandler, uploadHandler };

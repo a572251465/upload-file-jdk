@@ -1,15 +1,13 @@
 {
   "name": "upload-file-jdk",
-  "version": "1.0.0-beta.1",
+  "version": "2.0.0-beta.1",
   "description": "JavaScript JDK plugin for implementing breakpoint continuation",
   "main": "dist/index.cjs.js",
   "module": "dist/index.es.js",
   "typings": "typings/index.d.ts",
   "files": [
     "dist",
-    "typings",
-    "images",
-    "js"
+    "typings"
   ],
   "scripts": {
     "lint": "eslint --fix --ext .ts src --quiet",
@@ -21,7 +19,7 @@
     "big-file",
     "breakpoint continuation"
   ],
-  "homepage": "https://github.com/a572251465/upload-file-jdk",
+  "homepage": "https://a572251465.github.io/upload-file-jdk.docs/",
   "author": "lihh",
   "license": "ISC",
   "devDependencies": {
