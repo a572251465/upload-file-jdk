@@ -338,9 +338,9 @@ export function requestNormalReturnHandler(
     );
 
   // 从这里打印log
-  if (isNotEmpty(rs))
+  if (!returnFlags && isNotEmpty(rs))
     sleep(1000, function () {
-      Logger.error(JSON.stringify(rs));
+      Logger.error(JSON.stringify(rs), false);
     });
   return returnFlags;
 }

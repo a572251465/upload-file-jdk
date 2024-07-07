@@ -57,7 +57,7 @@ type ICommonResponse<T = unknown> = {
     data: T;
     message?: string;
     msg?: string;
-    success: boolean;
+    success?: boolean;
     code: number;
 };
 declare enum HTTPEnumState {
