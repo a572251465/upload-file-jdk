@@ -105,6 +105,14 @@ declare const enLanguage: Record<string, string>;
 declare function toFixedHandler(size: number, count: number): number;
 
 /**
+ * 选择的多语言
+ *
+ * @author lihh
+ * @param key 设置类型
+ */
+declare function getLng(key: UploadProgressState): string;
+
+/**
  * 重新 上传文件
  *
  * @author lihh
@@ -184,4 +192,4 @@ declare namespace uploadHandler {
     var dynamicFileSizeLimitRules: (limitRules: Array<[number, number]>) => void;
 }
 
-export { type ChunkFileType, type CurrentType, HTTPEnumState, type ICommonResponse, type IListFilesReq, type IMergeUploadReq, type ISectionUploadReq, type IVerifyFileExistReq, LanguageEnumType, NO_MESSAGE_DEFAULT_VALUE, type ProgressReturnType, type QueueElementBase, REVERSE_CONTAINER_ACTION, SERVER_REQUEST_FAIL_MSG, SOME_CONSTANT_VALUES, UPLOADING_FILE_SUBSCRIBE_DEFINE, type UploadConfigType, UploadProgressState, UploadProgressStateText, clearCacheStateHandler, computedBreakPointProgressHandler, enLanguage, fileSizeLimitDefaultRules, generateTask, jpLanguage, progressNormalOrErrorCompletionHandler, restartUploadFileHandler, sameFileNeedProceedHandler, splitFileUploadingHandler, startUploadFileHandler, toFixedHandler, uploadHandler, zhLanguage };
+export { type ChunkFileType, type CurrentType, HTTPEnumState, type ICommonResponse, type IListFilesReq, type IMergeUploadReq, type ISectionUploadReq, type IVerifyFileExistReq, LanguageEnumType, NO_MESSAGE_DEFAULT_VALUE, type ProgressReturnType, type QueueElementBase, REVERSE_CONTAINER_ACTION, SERVER_REQUEST_FAIL_MSG, SOME_CONSTANT_VALUES, UPLOADING_FILE_SUBSCRIBE_DEFINE, type UploadConfigType, UploadProgressState, UploadProgressStateText, clearCacheStateHandler, computedBreakPointProgressHandler, enLanguage, fileSizeLimitDefaultRules, generateTask, getLng, jpLanguage, progressNormalOrErrorCompletionHandler, restartUploadFileHandler, sameFileNeedProceedHandler, splitFileUploadingHandler, startUploadFileHandler, toFixedHandler, uploadHandler, zhLanguage };
