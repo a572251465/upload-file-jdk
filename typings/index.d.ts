@@ -41,6 +41,7 @@ type UploadConfigType = Partial<{
     concurrentLimit: number;
     persist: boolean;
     fileSizeLimitRules: Array<[number, number]>;
+    language?: LanguageEnumType;
 }> & {
     req: {
         listFilesReq: IListFilesReq | null;
@@ -63,17 +64,36 @@ type ICommonResponse<T = unknown> = {
 declare enum HTTPEnumState {
     OK = "200"
 }
+declare enum LanguageEnumType {
+    EN = "en",
+    ZH = "zh",
+    JA_JP = "ja_JP"
+}
 type IListFilesReq = (calculationHashCode: string) => Promise<ICommonResponse<Array<string>>>;
 type ISectionUploadReq = (calculationHashCode: string, chunkFileName: string, formData: FormData) => Promise<ICommonResponse<boolean>>;
 type IMergeUploadReq = (calculationHashCode: string, fileName: string) => Promise<ICommonResponse>;
 type IVerifyFileExistReq = (calculationHashName: string) => Promise<ICommonResponse<boolean>>;
 
-declare const UploadProgressStateText: Record<Required<UploadProgressState>, string>;
+declare const UploadProgressStateText: Record<Required<UploadProgressState>, Record<LanguageEnumType, string>>;
 declare const fileSizeLimitDefaultRules: Array<[number, number]>;
 declare const UPLOADING_FILE_SUBSCRIBE_DEFINE = "UPLOADING_FILE_SUBSCRIBE_DEFINE";
 declare const REVERSE_CONTAINER_ACTION = "REVERSE_CONTAINER_ACTION";
-declare const PERSIST_LOCAL_KEY = "big.file.upload.state";
 declare const SERVER_REQUEST_FAIL_MSG = "fetch fail, \u8BF7\u68C0\u67E5\u670D\u52A1";
+declare const NO_MESSAGE_DEFAULT_VALUE = "\u672A\u63D0\u4F9B\u9519\u8BEF\u6D88\u606F";
+declare const SOME_CONSTANT_VALUES: {
+    KEY1: string;
+    KEY2: string;
+    KEY3: string;
+    KEY4: string;
+    KEY5: string;
+    KEY6: string;
+    KEY7: string;
+    KEY8: string;
+    KEY9: string;
+};
+declare const zhLanguage: Record<string, string>;
+declare const jpLanguage: Record<string, string>;
+declare const enLanguage: Record<string, string>;
 
 /**
  * 固定小数点的方法
@@ -160,7 +180,8 @@ declare function startUploadFileHandler(file: File, calculationHashName: string,
 declare function uploadHandler(uploadFile: File, callback?: (arr: ProgressReturnType) => void): Promise<ProgressReturnType>;
 declare namespace uploadHandler {
     var config: (config: UploadConfigType) => void;
+    var lng: (language?: LanguageEnumType) => Promise<void>;
     var dynamicFileSizeLimitRules: (limitRules: Array<[number, number]>) => void;
 }
 
-export { type ChunkFileType, type CurrentType, HTTPEnumState, type ICommonResponse, type IListFilesReq, type IMergeUploadReq, type ISectionUploadReq, type IVerifyFileExistReq, PERSIST_LOCAL_KEY, type ProgressReturnType, type QueueElementBase, REVERSE_CONTAINER_ACTION, SERVER_REQUEST_FAIL_MSG, UPLOADING_FILE_SUBSCRIBE_DEFINE, type UploadConfigType, UploadProgressState, UploadProgressStateText, clearCacheStateHandler, computedBreakPointProgressHandler, fileSizeLimitDefaultRules, generateTask, progressNormalOrErrorCompletionHandler, restartUploadFileHandler, sameFileNeedProceedHandler, splitFileUploadingHandler, startUploadFileHandler, toFixedHandler, uploadHandler };
+export { type ChunkFileType, type CurrentType, HTTPEnumState, type ICommonResponse, type IListFilesReq, type IMergeUploadReq, type ISectionUploadReq, type IVerifyFileExistReq, LanguageEnumType, NO_MESSAGE_DEFAULT_VALUE, type ProgressReturnType, type QueueElementBase, REVERSE_CONTAINER_ACTION, SERVER_REQUEST_FAIL_MSG, SOME_CONSTANT_VALUES, UPLOADING_FILE_SUBSCRIBE_DEFINE, type UploadConfigType, UploadProgressState, UploadProgressStateText, clearCacheStateHandler, computedBreakPointProgressHandler, enLanguage, fileSizeLimitDefaultRules, generateTask, jpLanguage, progressNormalOrErrorCompletionHandler, restartUploadFileHandler, sameFileNeedProceedHandler, splitFileUploadingHandler, startUploadFileHandler, toFixedHandler, uploadHandler, zhLanguage };

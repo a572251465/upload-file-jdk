@@ -16,6 +16,7 @@ import {
   ChunkFileType,
   cloneGlobalInfoMappingHandler,
   createFileChunks,
+  currentChooseLanguage,
   defaultEmptyFunction,
   emitPauseProgressState,
   emitRequestErrorProgressState,
@@ -30,6 +31,7 @@ import {
   globalWaitingHashCalculationQueue,
   ICommonResponse,
   isCallConfigMethod,
+  LanguageEnumType,
   Logger,
   pLimit,
   ProgressReturnType,
@@ -38,6 +40,7 @@ import {
   requestNormalReturnHandler,
   sameFileUploadStateMapping,
   SERVER_REQUEST_FAIL_MSG,
+  SOME_CONSTANT_VALUES,
   toFixedHandler,
   upConcurrentHandler,
   UploadConfigType,
@@ -45,6 +48,8 @@ import {
   UploadProgressState,
   useStore,
 } from "./core";
+import { initLng } from "./core/language";
+import i18next from "i18next";
 
 export * from "./core/types";
 export * from "./core/constant";
@@ -69,7 +74,7 @@ const [, , getAllItemHandler] = useStore();
  */
 export async function restartUploadFileHandler(
   uniqueCode: string,
-  newType: UploadProgressState
+  newType: UploadProgressState,
 ) {
   // 表示暂停后 重新启动
   const map = globalInfoMapping[uniqueCode],
@@ -120,11 +125,11 @@ export async function sameFileNeedProceedHandler(uniqueCode: string) {
 
   // 拿到剩余的 values
   const newUniqueCodeValues = uniqueCodeValues!.filter(
-    code => !equals(code, uniqueCode)
+    (code) => !equals(code, uniqueCode),
   );
   // 等待的状态 批量上传
-  newUniqueCodeValues!.forEach(code =>
-    restartUploadFileHandler(code, UploadProgressState.Waiting)
+  newUniqueCodeValues!.forEach((code) =>
+    restartUploadFileHandler(code, UploadProgressState.Waiting),
   );
 }
 
@@ -140,7 +145,7 @@ export function progressNormalOrErrorCompletionHandler(el: QueueElementBase) {
   if (!isHas(globalInfoMapping, uniqueCode!)) return;
   // 拿到 calculationHashName
   const calculationHashName = globalInfoMapping[uniqueCode!].get(
-    "calculationHashName"
+    "calculationHashName",
   )!;
   // 判断 calculationHashName 是否存在
   if (!sameFileUploadStateMapping.current.has(calculationHashName)) return;
@@ -188,7 +193,7 @@ export function clearCacheStateHandler(uniqueCode: string) {
 export async function computedBreakPointProgressHandler(
   calculationHashCode: string,
   uniqueCode: string,
-  step: number
+  step: number,
 ) {
   let res: ICommonResponse<Array<string>> | null = null;
 
@@ -196,7 +201,7 @@ export async function computedBreakPointProgressHandler(
     // 从这里 判断是否断点续传
     res =
       await calculateUploaderConfig.current!.req.listFilesReq!(
-        calculationHashCode
+        calculationHashCode,
       );
   } catch (e) {
     emitRequestErrorProgressState(uniqueCode, SERVER_REQUEST_FAIL_MSG);
@@ -213,7 +218,7 @@ export async function computedBreakPointProgressHandler(
     emitUploadingProgressState(
       UploadProgressState.BreakPointUpload,
       uniqueCode,
-      step * length
+      step * length,
     );
     // 断点续传，设置等待状态
     await sleep(1000);
@@ -265,7 +270,7 @@ export async function splitFileUploadingHandler(
   uniqueCode: string,
   calculationHashCode: string,
   chunks: Array<ChunkFileType>,
-  retryTimes = 0
+  retryTimes = 0,
 ) {
   // 步长, 保留一个小数点
   const step = toFixedHandler(100 / chunks.length, 1);
@@ -285,7 +290,7 @@ export async function splitFileUploadingHandler(
       res = await calculateUploaderConfig.current!.req.sectionUploadReq!(
         calculationHashCode,
         chunkFileName,
-        formData
+        formData,
       );
     } catch (e) {
       emitRequestErrorProgressState(uniqueCode, SERVER_REQUEST_FAIL_MSG);
@@ -302,7 +307,7 @@ export async function splitFileUploadingHandler(
       if (
         equals(
           UploadProgressState.Pause,
-          globalProgressState.current.get(uniqueCode)
+          globalProgressState.current.get(uniqueCode),
         )
       )
         continue;
@@ -311,7 +316,7 @@ export async function splitFileUploadingHandler(
       emitUploadingProgressState(
         UploadProgressState.Uploading,
         uniqueCode,
-        step
+        step,
       );
       idx += 1;
     } else {
@@ -334,7 +339,7 @@ export async function splitFileUploadingHandler(
         uniqueCode,
         calculationHashCode,
         chunks,
-        retryTimes
+        retryTimes,
       );
     }
   }
@@ -357,7 +362,7 @@ export async function splitFileUploadingHandler(
 export async function generateTask(
   calculationHashCode: string,
   uniqueCode: string,
-  chunks: Array<ChunkFileType>
+  chunks: Array<ChunkFileType>,
 ) {
   // 如果是异常状态，就没必要往下走了
   if (isNeedInterrupt(uniqueCode)) return;
@@ -378,7 +383,7 @@ export async function generateTask(
     idx = await computedBreakPointProgressHandler(
       calculationHashCode,
       uniqueCode,
-      step
+      step,
     );
   }
   // 执行到这里，也许是请求错误了，就没必要向下走了
@@ -400,7 +405,7 @@ export async function generateTask(
   try {
     res = await calculateUploaderConfig.current!.req.mergeUploadReq!(
       calculationHashCode,
-      `${calculationHashCode}.${extName}`
+      `${calculationHashCode}.${extName}`,
     );
   } catch (e) {
     emitRequestErrorProgressState(uniqueCode, SERVER_REQUEST_FAIL_MSG);
@@ -418,7 +423,10 @@ export async function generateTask(
  */
 function checkUploaderConfigReqHandler() {
   if (isEmpty(calculateUploaderConfig.current?.req))
-    Logger.error("请配置请求方法 <calculateUploaderConfig.current.req>");
+    Logger.error(
+      i18next.t(SOME_CONSTANT_VALUES.KEY9) +
+        " <calculateUploaderConfig.current.req>",
+    );
   const req = calculateUploaderConfig.current!.req;
 
   // 请求方法限制判断
@@ -428,7 +436,10 @@ function checkUploaderConfigReqHandler() {
     !isFunction(req.sectionUploadReq) ||
     !isFunction(req.verifyFileExistReq)
   )
-    Logger.error("请配置请求方法 <calculateUploaderConfig.current.req>");
+    Logger.error(
+      i18next.t(SOME_CONSTANT_VALUES.KEY9) +
+        " <calculateUploaderConfig.current.req>",
+    );
 }
 
 /**
@@ -451,7 +462,7 @@ function uploadFileConfigHandler() {
 export async function startUploadFileHandler(
   file: File,
   calculationHashName: string,
-  uniqueCode: string
+  uniqueCode: string,
 ) {
   // 判断默认配置
   uploadFileConfigHandler();
@@ -461,7 +472,7 @@ export async function startUploadFileHandler(
     // 进行请求 实现秒传
     res =
       await calculateUploaderConfig.current!.req.verifyFileExistReq!(
-        calculationHashName
+        calculationHashName,
       );
   } catch (e) {
     emitRequestErrorProgressState(uniqueCode, SERVER_REQUEST_FAIL_MSG);
@@ -484,13 +495,13 @@ export async function startUploadFileHandler(
     null,
     calculationHashCode,
     uniqueCode,
-    fileChunks
+    fileChunks,
   );
 
   // 添加并且发射任务, 每次添加一个文件，就会发射文件
   if (!pLimit.current)
     pLimit.current = PLimit.getInstance(
-      calculateUploaderConfig.current!.concurrentLimit!
+      calculateUploaderConfig.current!.concurrentLimit!,
     );
   pLimit.current!.firingTask(task);
 }
@@ -504,7 +515,7 @@ export async function startUploadFileHandler(
  */
 function sameFileUploadingHandler(
   calculationHashName: string,
-  uniqueCode: string
+  uniqueCode: string,
 ) {
   let uniqueCodeArr =
     sameFileUploadStateMapping.current.get(calculationHashName);
@@ -512,7 +523,7 @@ function sameFileUploadingHandler(
   if (!isArray(uniqueCodeArr))
     sameFileUploadStateMapping.current.set(
       calculationHashName,
-      (uniqueCodeArr = [])
+      (uniqueCodeArr = []),
     );
 
   // 添加到数组中
@@ -530,7 +541,7 @@ function calculationHashNameHandler(uploadFile: File, uniqueCode: string) {
   // 修改状态为 等待状态
   emitUploadProgressState(
     UploadProgressState.HashCalculationWaiting,
-    uniqueCode
+    uniqueCode,
   );
   // 判断队列是否为空
   if (isEmpty(globalWaitingHashCalculationQueue.current)) {
@@ -568,7 +579,7 @@ function wakeupNewQueueElementHandler() {
 async function eventChangeCallbackHandler(
   uploadFile: File,
   uniqueCode: string,
-  event: MessageEvent<string>
+  event: MessageEvent<string>,
 ) {
   // 开始尝试 计算新的
   wakeupNewQueueElementHandler();
@@ -578,7 +589,7 @@ async function eventChangeCallbackHandler(
   putGlobalInfoMappingHandler(
     uniqueCode,
     "calculationHashName",
-    calculationHashName
+    calculationHashName,
   );
 
   // 判断 是否相同文件上传中
@@ -587,7 +598,7 @@ async function eventChangeCallbackHandler(
     // 克隆 mapping 信息
     cloneGlobalInfoMappingHandler(
       sameFileUploadStateMapping.current.get(calculationHashName)![0],
-      uniqueCode
+      uniqueCode,
     );
 
     emitUploadProgressState(UploadProgressState.OtherUploading, uniqueCode);
@@ -621,7 +632,7 @@ function asyncWebWorkerActionHandler(uploadFile: File, uniqueCode: string) {
     calculateNameWorker.current!.onmessage = eventChangeCallbackHandler.bind(
       null,
       uploadFile,
-      uniqueCode
+      uniqueCode,
     );
   } else {
     channel.port1.postMessage({ fileName: uploadFile.name });
@@ -629,7 +640,7 @@ function asyncWebWorkerActionHandler(uploadFile: File, uniqueCode: string) {
     channel.port1.onmessage = eventChangeCallbackHandler.bind(
       null,
       uploadFile,
-      uniqueCode
+      uniqueCode,
     );
   }
 }
@@ -643,7 +654,7 @@ function asyncWebWorkerActionHandler(uploadFile: File, uniqueCode: string) {
  */
 export function uploadHandler(
   uploadFile: File,
-  callback?: (arr: ProgressReturnType) => void
+  callback?: (arr: ProgressReturnType) => void,
 ) {
   return new Promise<ProgressReturnType>(async (resolve, reject) => {
     // 每个文件分配一个code，唯一的code
@@ -673,7 +684,7 @@ export function uploadHandler(
       "extName",
       extName,
       "uploadFile",
-      uploadFile
+      uploadFile,
     );
     // 修改状态
     emitUploadProgressState(UploadProgressState.Prepare, uniqueCode);
@@ -692,21 +703,46 @@ export function uploadHandler(
 uploadHandler.config = function (config: UploadConfigType) {
   const req = valueOrDefault(
     calculateUploaderConfig.current && calculateUploaderConfig.current?.req,
-    {}
+    {},
   );
 
   // 全局设置 配置文件
   calculateUploaderConfig.current = Object.assign(
     {},
     uploaderDefaultConfig,
-    config
+    config,
   );
 
   if (isNotEmpty(Object.keys(req!)))
     calculateUploaderConfig.current!.req = req!;
 
+  uploadHandler.lng(config.language);
+
   // 表示调用过
   isCallConfigMethod.current = true;
+};
+
+/**
+ * 设置 语言
+ *
+ * @author lihh
+ * @param language 设置语言
+ */
+uploadHandler.lng = async function (language?: LanguageEnumType) {
+  // 设置 当前选择的语言
+  const chooseLanguage =
+    isEmpty(language) ||
+    ![
+      LanguageEnumType.EN,
+      LanguageEnumType.ZH,
+      LanguageEnumType.JA_JP,
+    ].includes(language!)
+      ? LanguageEnumType.ZH
+      : language!;
+
+  currentChooseLanguage.current = chooseLanguage;
+  // 从这里初始化 语言
+  await initLng(chooseLanguage);
 };
 
 /**
@@ -716,7 +752,7 @@ uploadHandler.config = function (config: UploadConfigType) {
  * @param limitRules 限制文件大小
  */
 uploadHandler.dynamicFileSizeLimitRules = function (
-  limitRules: Array<[number, number]>
+  limitRules: Array<[number, number]>,
 ) {
   if (!isCallConfigMethod.current) uploadHandler.config(uploaderDefaultConfig);
 

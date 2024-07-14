@@ -1,6 +1,6 @@
 {
   "name": "upload-file-jdk",
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.3",
   "description": "JavaScript JDK plugin for implementing breakpoint continuation",
   "main": "dist/index.cjs.js",
   "module": "dist/index.es.js",
@@ -44,6 +44,7 @@
     "vue": "^3.4.21"
   },
   "dependencies": {
+    "i18next": "^23.11.5",
     "jsmethod-extra": "^2.0.7",
     "localforage": "^1.10.0"
   }

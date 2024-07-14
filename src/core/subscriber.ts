@@ -14,6 +14,7 @@ import { useStore } from "./store";
 import localforage from "localforage";
 import {
   REVERSE_CONTAINER_ACTION,
+  SOME_CONSTANT_VALUES,
   UPLOADING_FILE_SUBSCRIBE_DEFINE,
 } from "./constant";
 import {
@@ -30,6 +31,7 @@ import {
   restartUploadFileHandler,
   sameFileNeedProceedHandler,
 } from "../index";
+import i18next from "i18next";
 
 const [addItemHandler, deleteItemHandler] = useStore();
 
@@ -42,7 +44,7 @@ emitterAndTaker.on(
       !globalProgressState.current.has(uniqueCode)
     ) {
       Logger.warning(
-        strFormat("[%s] 进度已经完成了, 可以自行进行删除.", uniqueCode)
+        strFormat("[%s] %s", uniqueCode, i18next.t(SOME_CONSTANT_VALUES.KEY8)),
       );
       return;
     }
@@ -50,7 +52,7 @@ emitterAndTaker.on(
     // 判断 动作是否合法
     if (
       ![UploadProgressState.Pause, UploadProgressState.Canceled].includes(
-        action
+        action,
       ) ||
       !globalProgressState.current.has(uniqueCode)
     )
@@ -69,12 +71,12 @@ emitterAndTaker.on(
         if (!isUndefined(isPaused))
           await restartUploadFileHandler(
             uniqueCode,
-            UploadProgressState.PauseRetry
+            UploadProgressState.PauseRetry,
           );
         break;
       }
     }
-  }
+  },
 );
 
 // 订阅事件【UPLOADING_FILE_SUBSCRIBE_DEFINE】，每个状态改变 都会执行这个方法
@@ -91,7 +93,7 @@ emitterAndTaker.on(
         // 某个文件结束的时候，判断是否有相同的文件等待
         if (
           [UploadProgressState.Done, UploadProgressState.QuickUpload].includes(
-            el.type
+            el.type,
           )
         )
           await sameFileNeedProceedHandler(el.uniqueCode!);
@@ -107,7 +109,7 @@ emitterAndTaker.on(
     }
   },
   SubscriberSort.FIRST,
-  10
+  10,
 );
 
 /**
@@ -129,16 +131,7 @@ emitterAndTaker.on(
           pMethods = globalDoneCallbackMapping.current.get(el.uniqueCode!);
 
         // 这里是执行 promise resolve 方法 以及 callback方法
-        if (!isArray(pMethods)) {
-          Logger.warning(
-            strFormat(
-              "[%s(%s)] 无法获取到进度信息, 请联系开发者",
-              fileName,
-              el.uniqueCode!
-            )
-          );
-          return;
-        }
+        if (!isArray(pMethods)) return;
         const [m1, , m3] = pMethods!;
         if (isFunction(m1)) m1([calculationHashName, fileName]);
         if (isFunction(m3)) m3([calculationHashName, fileName]);
@@ -146,7 +139,7 @@ emitterAndTaker.on(
     }
   },
   SubscriberSort.FIRST,
-  5
+  5,
 );
 
 /* 这里为了 持久化 而订阅 */
@@ -157,7 +150,7 @@ emitterAndTaker.on(
     if (!calculateUploaderConfig.current?.persist) return;
     /* 判断 是否支持 indexedDB */
     if (!localforage.supports(localforage.INDEXEDDB))
-      return Logger.warning("暂时 不支持 indexedDB, 无法持久化");
+      return Logger.warning(i18next.t(SOME_CONSTANT_VALUES.KEY7));
 
     /* 判断状态是否处于完成状态 */
     if (
@@ -166,7 +159,7 @@ emitterAndTaker.on(
         UploadProgressState.QuickUpload,
         UploadProgressState.RetryFailed,
         UploadProgressState.Canceled,
-        UploadProgressState.RequestError
+        UploadProgressState.RequestError,
       ].includes(el.type!)
     ) {
       /* 直接删除 */
@@ -186,10 +179,7 @@ emitterAndTaker.on(
     ) {
       /* 汇集key */
       const mapInfo = globalInfoMapping[el.uniqueCode!];
-      if (isEmpty(mapInfo)) {
-        Logger.warning(strFormat("持久化订阅 %s 取到的值为空", el.uniqueCode!));
-        return;
-      }
+      if (isEmpty(mapInfo)) return;
 
       const values: Array<unknown> = [];
       for (const [key, value] of mapInfo) values.push(key, value);
@@ -199,5 +189,5 @@ emitterAndTaker.on(
     }
   },
   SubscriberSort.FIRST,
-  3
+  3,
 );

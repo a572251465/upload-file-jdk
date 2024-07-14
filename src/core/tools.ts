@@ -23,8 +23,13 @@ import {
   globalInfoMapping,
   globalProgressState,
 } from "./variable";
-import { UPLOADING_FILE_SUBSCRIBE_DEFINE } from "./constant";
-import { Logger } from "./Logger";
+import {
+  NO_MESSAGE_DEFAULT_VALUE,
+  SOME_CONSTANT_VALUES,
+  UPLOADING_FILE_SUBSCRIBE_DEFINE,
+} from "./constant";
+import {Logger} from "./Logger";
+import i18next from "i18next";
 
 /**
  * 克隆全局的信息 映射事件
@@ -102,14 +107,14 @@ export function generateUniqueCode() {
  */
 export function isCanCommitProgressState(
   uniqueCode: string,
-  currentProgressType: UploadProgressState
+  currentProgressType: UploadProgressState,
 ) {
   return (
     [UploadProgressState.Pause].includes(
-      globalProgressState.current.get(uniqueCode)!
+      globalProgressState.current.get(uniqueCode)!,
     ) &&
     ![UploadProgressState.Pause, UploadProgressState.Done].includes(
-      currentProgressType
+      currentProgressType,
     )
   );
 }
@@ -123,7 +128,7 @@ export function isCanCommitProgressState(
  */
 export function generateBaseProgressState(
   type: UploadProgressState,
-  uniqueCode: string
+  uniqueCode: string,
 ) {
   const map = globalInfoMapping[uniqueCode];
   if (isEmpty(map)) return;
@@ -157,7 +162,7 @@ export function generateBaseProgressState(
  */
 export function emitRequestErrorProgressState(
   uniqueCode: string,
-  errorMsg: string
+  errorMsg: string,
 ) {
   if (isCanCommitProgressState(uniqueCode, UploadProgressState.RequestError))
     return;
@@ -165,11 +170,15 @@ export function emitRequestErrorProgressState(
   // 基础 进度状态
   const baseProgressState = generateBaseProgressState(
     UploadProgressState.RequestError,
-    uniqueCode
+    uniqueCode,
   );
   if (isEmpty(baseProgressState)) return;
 
-  baseProgressState!.requestErrorMsg = errorMsg;
+  // 如果为空的话 设置默认的消息
+  baseProgressState!.requestErrorMsg = valueOrDefault(
+    errorMsg,
+    NO_MESSAGE_DEFAULT_VALUE,
+  );
   emitterAndTaker.emit(UPLOADING_FILE_SUBSCRIBE_DEFINE, baseProgressState);
 }
 
@@ -182,13 +191,13 @@ export function emitRequestErrorProgressState(
  */
 export function emitUploadProgressState(
   type: UploadProgressState,
-  uniqueCode: string
+  uniqueCode: string,
 ) {
   if (isCanCommitProgressState(uniqueCode, type)) return;
 
   emitterAndTaker.emit(
     UPLOADING_FILE_SUBSCRIBE_DEFINE,
-    generateBaseProgressState(type, uniqueCode)
+    generateBaseProgressState(type, uniqueCode),
   );
 }
 
@@ -205,7 +214,7 @@ export function emitRetryProgressState(uniqueCode: string, retryTimes: number) {
   // 基础 进度状态
   const baseProgressState = generateBaseProgressState(
     UploadProgressState.Retry,
-    uniqueCode
+    uniqueCode,
   );
   if (isEmpty(baseProgressState)) return;
   baseProgressState!.retryTimes = retryTimes;
@@ -224,7 +233,7 @@ export function emitRetryProgressState(uniqueCode: string, retryTimes: number) {
 export function emitUploadingProgressState(
   type: UploadProgressState,
   uniqueCode: string,
-  step: number
+  step: number,
 ) {
   if (isCanCommitProgressState(uniqueCode, type)) return;
 
@@ -246,7 +255,7 @@ export function emitUploadingProgressState(
 export function emitPauseProgressState(
   type: UploadProgressState,
   uniqueCode: string,
-  pauseIndex: number
+  pauseIndex: number,
 ) {
   if (isCanCommitProgressState(uniqueCode, type)) return;
 
@@ -276,16 +285,15 @@ export function fileSizeLimitRulesCheckHandler() {
   // 文件大小限制
   const limitRules = calculateUploaderConfig.current!.fileSizeLimitRules!;
   for (const item of limitRules) {
-    if (!isArray(item)) Logger.error("文件切割大小限制规则 元素必须是数组");
+    if (!isArray(item)) Logger.error(i18next.t(SOME_CONSTANT_VALUES.KEY1));
     if (!equals(item.length, 2))
-      Logger.error("文件切割大小限制规则 数组只能有两个元素");
+      Logger.error(i18next.t(SOME_CONSTANT_VALUES.KEY2));
     if (!isNumber(item[0]) || !isNumber(item[1]))
-      Logger.error("文件切割大小限制规则 数组的元素只能是数字");
+      Logger.error(i18next.t(SOME_CONSTANT_VALUES.KEY3));
   }
-  if (limitRules.length < 2)
-    Logger.error("文件切割大小限制规则 数组元素个数不能小于2");
+  if (limitRules.length < 2) Logger.error(i18next.t(SOME_CONSTANT_VALUES.KEY4));
   if (limitRules.length < 5)
-    Logger.warning("文件切割大小限制规则 最好不要低于5个");
+    Logger.warning(i18next.t(SOME_CONSTANT_VALUES.KEY5));
 
   fileSizeLimitRules.current = limitRules;
   // 限制切割文件大小后 然后进行排序
@@ -320,7 +328,7 @@ export function toFixedHandler(size: number, count: number) {
  */
 export function requestNormalReturnHandler(
   rs: ICommonResponse,
-  uniqueCode?: string
+  uniqueCode?: string,
 ): boolean {
   // 表示 返回状态
   let returnFlags = false;
@@ -334,7 +342,7 @@ export function requestNormalReturnHandler(
   if (!returnFlags && isNotEmpty(uniqueCode))
     emitRequestErrorProgressState(
       uniqueCode,
-      rs.message || rs.msg || "暂无请求提示"
+      rs.message || rs.msg || "暂无请求提示",
     );
 
   // 从这里打印log
@@ -365,17 +373,13 @@ export function requestNormalReturnHandler(
             uploadJdk: { publicPath: string };
           }
         )?.uploadJdk?.publicPath,
-        ""
+        "",
       )}/calculateNameWorker.js`;
       calculateNameWorker.current = new Worker(workerPath);
     } catch (e) {
-      Logger.warning(
-        "不兼容web worker 或 未引入calculateNameWorker.js, 通过 MessageChannel 做兼容处理"
-      );
+      Logger.warning(i18next.t(SOME_CONSTANT_VALUES.KEY6));
     }
   } else {
-    Logger.warning(
-      "不兼容web worker 或 未引入calculateNameWorker.js, 通过 MessageChannel 做兼容处理"
-    );
+    Logger.warning(i18next.t(SOME_CONSTANT_VALUES.KEY6));
   }
 })();
