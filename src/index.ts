@@ -54,6 +54,7 @@ import i18next from "i18next";
 export * from "./core/types";
 export * from "./core/constant";
 export { toFixedHandler } from "./core/tools";
+export { getLng } from "./core/language";
 export {
   emitterAndTaker,
   SubscriberSort,
