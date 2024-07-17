@@ -98,11 +98,11 @@ export const UploadProgressStateText: Record<
 
 // 表示默认的上传文件大小规范
 export const fileSizeLimitDefaultRules: Array<[number, number]> = [
-  [30, 3],
-  [60, 4],
-  [100, 5],
-  [200, 6],
-  [400, 8],
+  [30, 0.5],
+  [60, 0.8],
+  [100, 1],
+  [200, 1.5],
+  [400, 2],
 ];
 
 /* 上传的文件 订阅状态 */
@@ -114,6 +114,8 @@ export const REVERSE_CONTAINER_ACTION = "REVERSE_CONTAINER_ACTION";
 export const SERVER_REQUEST_FAIL_MSG = "fetch fail, 请检查服务";
 // 表示空消息的默认值
 export const NO_MESSAGE_DEFAULT_VALUE = "未提供错误消息";
+// 表示 内部进度的固定值
+export const INNER_PROGRESS_CONST = "innerProgress";
 
 // 一些固定值
 export const SOME_CONSTANT_VALUES = {
@@ -126,6 +128,7 @@ export const SOME_CONSTANT_VALUES = {
   KEY7: "KEY7",
   KEY8: "KEY8",
   KEY9: "KEY9",
+  KEY10: "KEY10",
 };
 
 // 表示 zh 语言
@@ -140,6 +143,7 @@ export const zhLanguage: Record<string, string> = {
   [SOME_CONSTANT_VALUES.KEY7]: "暂时 不支持 indexedDB, 无法持久化",
   [SOME_CONSTANT_VALUES.KEY8]: "进度已经完成了, 可以自行进行删除.",
   [SOME_CONSTANT_VALUES.KEY9]: "请配置请求方法",
+  [SOME_CONSTANT_VALUES.KEY10]: "暂时无进度",
 };
 
 // 表示 jp 语言
@@ -161,6 +165,7 @@ export const jpLanguage: Record<string, string> = {
   [SOME_CONSTANT_VALUES.KEY8]:
     "進行状況はすでに完了しているので、自分で削除することができます。",
   [SOME_CONSTANT_VALUES.KEY9]: "要求方法を設定してください",
+  [SOME_CONSTANT_VALUES.KEY10]: "しばらく進行なし"
 };
 
 // 表示 en 语言
@@ -182,4 +187,5 @@ export const enLanguage: Record<string, string> = {
   [SOME_CONSTANT_VALUES.KEY8]:
     "the progress has been completed and can be deleted on your own",
   [SOME_CONSTANT_VALUES.KEY9]: "please configure the request method",
+  [SOME_CONSTANT_VALUES.KEY10]: "No progress temporarily"
 };

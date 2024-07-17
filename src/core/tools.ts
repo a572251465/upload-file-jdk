@@ -1,32 +1,34 @@
 import {
-  emitterAndTaker,
-  equals,
-  isArray,
-  isEmpty,
-  isHas,
-  isNotEmpty,
-  isNumber,
-  isUndefined,
-  sleep,
-  valueOrDefault,
+    emitterAndTaker,
+    equals,
+    isArray,
+    isEmpty,
+    isHas,
+    isNotEmpty,
+    isNumber,
+    isUndefined,
+    sleep,
+    strFormat,
+    valueOrDefault,
 } from "jsmethod-extra";
 import {
-  HTTPEnumState,
-  ICommonResponse,
-  QueueElementBase,
-  UploadProgressState,
+    HTTPEnumState,
+    ICommonResponse,
+    QueueElementBase,
+    UploadProgressState,
 } from "./types";
 import {
-  calculateNameWorker,
-  calculateUploaderConfig,
-  fileSizeLimitRules,
-  globalInfoMapping,
-  globalProgressState,
+    calculateNameWorker,
+    calculateUploaderConfig,
+    fileSizeLimitRules,
+    globalInfoMapping,
+    globalProgressState,
 } from "./variable";
 import {
-  NO_MESSAGE_DEFAULT_VALUE,
-  SOME_CONSTANT_VALUES,
-  UPLOADING_FILE_SUBSCRIBE_DEFINE,
+    INNER_PROGRESS_CONST,
+    NO_MESSAGE_DEFAULT_VALUE,
+    SOME_CONSTANT_VALUES,
+    UPLOADING_FILE_SUBSCRIBE_DEFINE,
 } from "./constant";
 import {Logger} from "./Logger";
 import i18next from "i18next";
@@ -140,7 +142,6 @@ export function generateBaseProgressState(
     uploadFile: map.get("uploadFile") as unknown as File,
     fileName: map.get("fileName")!,
     progress: 0,
-    step: 0,
     retryTimes: 0,
     pauseIndex: 0,
     networkDisconnectedRetryTimes: 0,
@@ -223,23 +224,46 @@ export function emitRetryProgressState(uniqueCode: string, retryTimes: number) {
 }
 
 /**
+ * 计算内部 progress 的长度
+ *
+ * @author lihh
+ * @param uniqueCode 文件 唯一的code
+ * @param step 表示每次执行步长
+ */
+export function computedInnerProgressHandler(uniqueCode: string, step: number) {
+  const infoMapping = globalInfoMapping[uniqueCode];
+
+  let innerProgress = step;
+  if (!infoMapping.has(INNER_PROGRESS_CONST))
+    Logger.warning(
+      strFormat("<%s> %s", uniqueCode, i18next.t(SOME_CONSTANT_VALUES.KEY10)),
+    );
+  else {
+    innerProgress += Number(infoMapping.get(INNER_PROGRESS_CONST));
+    infoMapping.set(INNER_PROGRESS_CONST, innerProgress + "");
+  }
+
+  return innerProgress;
+}
+
+/**
  * 提交 上传的的进度状态
  *
  * @author lihh
  * @param type 类型
  * @param uniqueCode 唯一的code
- * @param step 步长
+ * @param realProgress 表示真实的进度
  */
 export function emitUploadingProgressState(
   type: UploadProgressState,
   uniqueCode: string,
-  step: number,
+  realProgress: number,
 ) {
   if (isCanCommitProgressState(uniqueCode, type)) return;
 
   const baseProgressState = generateBaseProgressState(type, uniqueCode);
   if (isEmpty(baseProgressState)) return;
-  baseProgressState!.step = step;
+  baseProgressState!.progress = realProgress;
 
   emitterAndTaker.emit(UPLOADING_FILE_SUBSCRIBE_DEFINE, baseProgressState);
 }
@@ -316,6 +340,16 @@ export function toFixedHandler(size: number, count: number) {
   const sizeArr = sizeStr.split(".");
   if (count === 0) return Number(sizeArr[0]);
   return Number(`${sizeArr[0]}.${sizeArr[1].slice(0, count)}`);
+}
+
+/**
+ * 根据切割文件个数 计算步长
+ *
+ * @author lihh
+ * @param chunkCount 文件个数
+ */
+export function computedStepHandler(chunkCount: number) {
+  return toFixedHandler(100 / chunkCount, 10);
 }
 
 /**
