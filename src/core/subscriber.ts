@@ -63,6 +63,7 @@ emitterAndTaker.on(
 
     switch (action) {
       case UploadProgressState.Canceled:
+        // 如果是取消的话 就会触发这个事件【UPLOADING_FILE_SUBSCRIBE_DEFINE】
         emitUploadProgressState(UploadProgressState.Canceled, uniqueCode);
         break;
       case UploadProgressState.Pause: {

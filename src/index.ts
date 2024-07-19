@@ -16,6 +16,7 @@ import {
   calculateUploaderConfig,
   channel,
   cloneGlobalInfoMappingHandler,
+  computeCurrentNetworkSpeedHandler,
   computedInnerProgressHandler,
   CURRENT_CONSUME_BYTES,
   currentChooseLanguage,
@@ -191,6 +192,9 @@ export function progressNormalOrErrorCompletionHandler(el: QueueElementBase) {
  * @author lihh
  */
 export function clearCacheStateHandler(uniqueCode: string) {
+  // 如果有 file 上传完成 重新请求网络
+  computeCurrentNetworkSpeedHandler(uniqueCode, true);
+
   // 删除缓存数据
   Reflect.deleteProperty(globalInfoMapping, uniqueCode);
   globalProgressState.current.delete(uniqueCode);
@@ -404,6 +408,8 @@ export async function generateTask(
 ) {
   // 如果是异常状态，就没必要往下走了
   if (isNeedInterrupt(uniqueCode)) return;
+  // 当一个任务添加进来后，重新请求网络
+  computeCurrentNetworkSpeedHandler(uniqueCode, true);
 
   let idx = 0;
   // 判断是否为 暂停重试
@@ -564,10 +570,13 @@ async function calculationHashNameHandler(
   uniqueCode: string,
 ) {
   // 修改状态为 等待状态
-  emitUploadProgressState(
-    UploadProgressState.HashCalculationWaiting,
-    uniqueCode,
-  );
+  if (
+    !emitUploadProgressState(
+      UploadProgressState.HashCalculationWaiting,
+      uniqueCode,
+    )
+  )
+    return;
 
   // 从缓存中 拿到hashName
   const calculationHashName = await getItemHandler(
@@ -673,7 +682,7 @@ async function eventChangeCallbackHandler(
   sameFileUploadingHandler(calculationHashName, uniqueCode);
 
   // 修改状态为 等待状态
-  emitUploadProgressState(UploadProgressState.Waiting, uniqueCode);
+  if (!emitUploadProgressState(UploadProgressState.Waiting, uniqueCode)) return;
   // 开始上传文件
   await startUploadFileHandler(calculationHashName, uniqueCode);
 }
@@ -753,7 +762,8 @@ export function uploadHandler(
       currentInternetSpeed.current,
     );
     // 修改状态
-    emitUploadProgressState(UploadProgressState.Prepare, uniqueCode);
+    if (!emitUploadProgressState(UploadProgressState.Prepare, uniqueCode))
+      return;
 
     // 计算 hash 名称的事件
     await calculationHashNameHandler(uploadFile, uniqueCode);

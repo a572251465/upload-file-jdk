@@ -1,20 +1,20 @@
 import localforage from "localforage";
-import {equals, isEmpty} from "jsmethod-extra";
-import {LocalforageTypeEnum} from "./types";
+import { equals, isEmpty } from "jsmethod-extra";
+import { LocalforageTypeEnum } from "./types";
 
 const store1 = localforage.createInstance({
-    driver: localforage.INDEXEDDB,
-    storeName: "big_file_upload",
+  driver: localforage.INDEXEDDB,
+  storeName: "big_file_upload",
 });
 const store2 = localforage.createInstance({
-    driver: localforage.INDEXEDDB,
-    storeName: "hash_name_p",
+  driver: localforage.INDEXEDDB,
+  storeName: "hash_name_p",
 });
 type LocalforageType = typeof store1;
 
 export const StoreFactory: Record<LocalforageTypeEnum, LocalforageType> = {
-    [LocalforageTypeEnum.p1]: store1,
-    [LocalforageTypeEnum.p2]: store2,
+  [LocalforageTypeEnum.p1]: store1,
+  [LocalforageTypeEnum.p2]: store2,
 };
 
 /**
@@ -25,13 +25,13 @@ export const StoreFactory: Record<LocalforageTypeEnum, LocalforageType> = {
  * @param store 使用store 默认的p1
  */
 async function deleteItemHandler(
-    key: string,
-    store = StoreFactory[LocalforageTypeEnum.p1],
+  key: string,
+  store = StoreFactory[LocalforageTypeEnum.p1],
 ) {
-    const allKeys = await store.keys();
-    if (isEmpty(allKeys) || !allKeys.includes(key)) return;
+  const allKeys = await store.keys();
+  if (isEmpty(allKeys) || !allKeys.includes(key)) return;
 
-    await store.removeItem(key);
+  await store.removeItem(key);
 }
 
 /**
@@ -41,7 +41,7 @@ async function deleteItemHandler(
  * @param store 指定仓库
  */
 async function getAllKeysHandler(store = StoreFactory[LocalforageTypeEnum.p1]) {
-    return (await store.keys()) || [];
+  return (await store.keys()) || [];
 }
 
 /**
@@ -51,17 +51,17 @@ async function getAllKeysHandler(store = StoreFactory[LocalforageTypeEnum.p1]) {
  * @param store 表示默认的 store
  */
 async function getAllItemHandler(store = StoreFactory[LocalforageTypeEnum.p1]) {
-    /* 首先 判断是否支持 indexedDB */
-    if (!store.supports(store.INDEXEDDB)) return null;
+  /* 首先 判断是否支持 indexedDB */
+  if (!store.supports(store.INDEXEDDB)) return null;
 
-    const allKeys = await store.keys();
-    if (isEmpty(allKeys)) return null;
+  const allKeys = await store.keys();
+  if (isEmpty(allKeys)) return null;
 
-    const arrayValues: Record<string, Array<unknown>> = {};
-    for (const arrayKey of allKeys) {
-        arrayValues[arrayKey] = (await store.getItem(arrayKey)) as Array<unknown>;
-    }
-    return arrayValues;
+  const arrayValues: Record<string, Array<unknown>> = {};
+  for (const arrayKey of allKeys) {
+    arrayValues[arrayKey] = (await store.getItem(arrayKey)) as Array<unknown>;
+  }
+  return arrayValues;
 }
 
 /**
@@ -73,11 +73,11 @@ async function getAllItemHandler(store = StoreFactory[LocalforageTypeEnum.p1]) {
  * @param store 表示默认的 store
  */
 async function addItemHandler(
-    key: string,
-    value: object,
-    store = StoreFactory[LocalforageTypeEnum.p1],
+  key: string,
+  value: object,
+  store = StoreFactory[LocalforageTypeEnum.p1],
 ) {
-    await store.setItem(key, value);
+  await store.setItem(key, value);
 }
 
 /**
@@ -88,19 +88,19 @@ async function addItemHandler(
  * @param store 默认的store
  */
 async function getItemHandler(
-    keyOrValue: object,
-    store = StoreFactory[LocalforageTypeEnum.p1],
+  keyOrValue: object,
+  store = StoreFactory[LocalforageTypeEnum.p1],
 ) {
-    const allKeys = await store.keys();
-    if (isEmpty(allKeys)) return null;
+  const allKeys = await store.keys();
+  if (isEmpty(allKeys)) return null;
 
-    for (const currentKey of allKeys) {
-        const currentValue = await store.getItem(currentKey);
+  for (const currentKey of allKeys) {
+    const currentValue = await store.getItem(currentKey);
 
-        if (equals(currentKey, keyOrValue)) return currentValue;
-        if (equals(currentValue, keyOrValue)) return currentKey;
-    }
-    return null;
+    if (equals(currentKey, keyOrValue)) return currentValue;
+    if (equals(currentValue, keyOrValue)) return currentKey;
+  }
+  return null;
 }
 
 /**
@@ -109,17 +109,17 @@ async function getItemHandler(
  * @author lihh
  */
 export function useStore(): [
-    typeof addItemHandler,
-    typeof deleteItemHandler,
-    typeof getAllItemHandler,
-    typeof getItemHandler,
-    typeof getAllKeysHandler,
+  typeof addItemHandler,
+  typeof deleteItemHandler,
+  typeof getAllItemHandler,
+  typeof getItemHandler,
+  typeof getAllKeysHandler,
 ] {
-    return [
-        addItemHandler,
-        deleteItemHandler,
-        getAllItemHandler,
-        getItemHandler,
-        getAllKeysHandler,
-    ];
+  return [
+    addItemHandler,
+    deleteItemHandler,
+    getAllItemHandler,
+    getItemHandler,
+    getAllKeysHandler,
+  ];
 }

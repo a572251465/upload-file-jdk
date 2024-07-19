@@ -69,16 +69,46 @@ export function getFileValuesHandler(file: File): string {
 }
 
 /**
+ * 计算 当前上传的文件个数
+ *
+ * @author lihh
+ */
+export function computeCurrentUploadingCountHandler(): number {
+  let count = 0;
+  for (const val of globalProgressState.current.values())
+    count += [
+      UploadProgressState.Uploading,
+      UploadProgressState.Merge,
+      UploadProgressState.BreakPointUpload,
+      UploadProgressState.PauseRetry,
+      UploadProgressState.RefreshRetry,
+    ].includes(val)
+      ? 1
+      : 0;
+
+  // 最少是 一个
+  return Math.max(count, 1);
+}
+
+/**
  * 计算当前的网络
  *
  * @author lihh
  * @param uniqueCode 表示唯一的code, 用来获取文件
+ * @param forceUpdate 是否强制更新
  */
-export async function computeCurrentNetworkSpeedHandler(uniqueCode: string) {
+export async function computeCurrentNetworkSpeedHandler(
+  uniqueCode: string,
+  forceUpdate = false,
+) {
   // 表示 开始时间
   const startTime = +new Date();
   // 保证每次间隔最起码在1s以上
-  if (startTime - prevComputeNetworkSpeedInterval.current < 3000) return;
+  if (
+    !forceUpdate &&
+    startTime - prevComputeNetworkSpeedInterval.current < 3000
+  )
+    return;
 
   const map = globalInfoMapping[uniqueCode];
   if (!isMap(map)) return;
@@ -104,7 +134,14 @@ export async function computeCurrentNetworkSpeedHandler(uniqueCode: string) {
     // 计算 花费时间, 按照每秒计算
     const duration = (endTime - startTime) / 1000;
 
-    currentInternetSpeed.current = toFixedHandler(computedSize / duration, 0);
+    // 最少保证20k 上传速度
+    currentInternetSpeed.current = Math.max(
+      toFixedHandler(
+        computedSize / duration / computeCurrentUploadingCountHandler(),
+        0,
+      ),
+      COMPUTE_NETWORK_BYTE_SIZE,
+    );
   } catch (e) {
     Logger.error(e as string, false);
   } finally {
@@ -270,13 +307,14 @@ export function emitRequestErrorProgressState(
 export function emitUploadProgressState(
   type: UploadProgressState,
   uniqueCode: string,
-) {
-  if (isCanCommitProgressState(uniqueCode, type)) return;
+): boolean {
+  if (isCanCommitProgressState(uniqueCode, type)) return false;
 
   emitterAndTaker.emit(
     UPLOADING_FILE_SUBSCRIBE_DEFINE,
     generateBaseProgressState(type, uniqueCode),
   );
+  return true;
 }
 
 /**
