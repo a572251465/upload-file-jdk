@@ -1,34 +1,41 @@
 import {
-    emitterAndTaker,
-    equals,
-    isArray,
-    isEmpty,
-    isHas,
-    isNotEmpty,
-    isNumber,
-    isUndefined,
-    sleep,
-    strFormat,
-    valueOrDefault,
+  emitterAndTaker,
+  equals,
+  isEmpty,
+  isHas,
+  isMap,
+  isNotEmpty,
+  isUndefined,
+  sleep,
+  strFormat,
+  valueOrDefault,
 } from "jsmethod-extra";
 import {
-    HTTPEnumState,
-    ICommonResponse,
-    QueueElementBase,
-    UploadProgressState,
+  HTTPEnumState,
+  ICommonResponse,
+  QueueElementBase,
+  UploadProgressState,
 } from "./types";
 import {
-    calculateNameWorker,
-    calculateUploaderConfig,
-    fileSizeLimitRules,
-    globalInfoMapping,
-    globalProgressState,
+  calculateNameWorker,
+  calculateUploaderConfig,
+  currentInternetSpeed,
+  globalConsumeOffset,
+  globalFileSize,
+  globalInfoMapping,
+  globalProgressState,
+  prevComputeNetworkSpeedInterval,
 } from "./variable";
 import {
-    INNER_PROGRESS_CONST,
-    NO_MESSAGE_DEFAULT_VALUE,
-    SOME_CONSTANT_VALUES,
-    UPLOADING_FILE_SUBSCRIBE_DEFINE,
+  COMPUTE_NETWORK_BYTE_SIZE,
+  CURRENT_CONSUME_BYTES,
+  FILE_SIZE_CONST,
+  INNER_PROGRESS_CONST,
+  NETWORK_SPEED_CONST,
+  NO_MESSAGE_DEFAULT_VALUE,
+  SOME_CONSTANT_VALUES,
+  UPLOAD_FILE_CONST,
+  UPLOADING_FILE_SUBSCRIBE_DEFINE,
 } from "./constant";
 import {Logger} from "./Logger";
 import i18next from "i18next";
@@ -48,6 +55,66 @@ export function cloneGlobalInfoMappingHandler(source: string, target: string) {
   // 设置 target 的值
   for (const [key, value] of map)
     putGlobalInfoMappingHandler(target, key, value);
+}
+
+/**
+ * 通过file本身 拿到 values
+ *
+ * @author lihh
+ * @param file 文件
+ */
+export function getFileValuesHandler(file: File): string {
+  const { lastModified, name, size, type } = file;
+  return `${lastModified}&${name}&${size}&${type}`;
+}
+
+/**
+ * 计算当前的网络
+ *
+ * @author lihh
+ * @param uniqueCode 表示唯一的code, 用来获取文件
+ */
+export async function computeCurrentNetworkSpeedHandler(uniqueCode: string) {
+  // 表示 开始时间
+  const startTime = +new Date();
+  // 保证每次间隔最起码在1s以上
+  if (startTime - prevComputeNetworkSpeedInterval.current < 3000) return;
+
+  const map = globalInfoMapping[uniqueCode];
+  if (!isMap(map)) return;
+
+  const file = map.get(UPLOAD_FILE_CONST) as unknown as File,
+    { size: fileSize } = file,
+    computedSize = Math.min(COMPUTE_NETWORK_BYTE_SIZE, fileSize);
+
+  // 构建参数
+  const calculationHashCode = `not_del_file_werwersfdsfdss23232`;
+  const formData = new FormData();
+  formData.append("file", file.slice(0, computedSize));
+
+  try {
+    await calculateUploaderConfig.current!.req.sectionUploadReq!(
+      calculationHashCode,
+      `${calculationHashCode}_1`,
+      formData,
+    );
+
+    // 结束时间
+    const endTime = +new Date();
+    // 计算 花费时间, 按照每秒计算
+    const duration = (endTime - startTime) / 1000;
+
+    currentInternetSpeed.current = toFixedHandler(computedSize / duration, 0);
+  } catch (e) {
+    Logger.error(e as string, false);
+  } finally {
+    prevComputeNetworkSpeedInterval.current = +new Date();
+    putGlobalInfoMappingHandler(
+      uniqueCode,
+      NETWORK_SPEED_CONST,
+      currentInternetSpeed.current,
+    );
+  }
 }
 
 /**
@@ -78,17 +145,17 @@ export function putGlobalInfoMappingHandler(...args: Array<unknown>) {
       else map = globalInfoMapping[code];
 
       map.set(key, value);
+
+      // 针对 fileSize/ 以及消费偏移量 做处理 进行处理
+      if (["fileSize", CURRENT_CONSUME_BYTES].includes(key as string)) {
+        const globalInfo = equals(CURRENT_CONSUME_BYTES, key)
+          ? globalConsumeOffset.current
+          : globalFileSize.current;
+        globalInfo.set(code, Number(value));
+      }
     }
   }
 }
-
-/**
- * 计算 字节 大小
- *
- * @author lihh
- * @param c 传递的MB 大小
- */
-export const calculateChunkSize = (c: number) => c * 1024 * 1024;
 
 /**
  * 这里是生成唯一的 code
@@ -96,7 +163,7 @@ export const calculateChunkSize = (c: number) => c * 1024 * 1024;
  * @author lihh
  */
 export function generateUniqueCode() {
-  return `${+new Date()}-${(Math.random() * 100000) | 0}-${(Math.random() * 10000000) | 0}`;
+  return `${+new Date()}_${(Math.random() * 100000) | 0}_${(Math.random() * 10000000) | 0}`;
 }
 
 /**
@@ -139,18 +206,28 @@ export function generateBaseProgressState(
   const baseQueueElement: Required<QueueElementBase> = {
     type,
     uniqueCode,
-    uploadFile: map.get("uploadFile") as unknown as File,
+    uploadFile: map.get(UPLOAD_FILE_CONST) as unknown as File,
     fileName: map.get("fileName")!,
     progress: 0,
     retryTimes: 0,
-    pauseIndex: 0,
-    networkDisconnectedRetryTimes: 0,
+    networkSpeed: currentInternetSpeed.current,
     requestErrorMsg: "",
-    fileSize: map.get("fileSize") as unknown as number,
+    fileSize: map.get(FILE_SIZE_CONST) as unknown as number,
   };
 
   // 设置全局的进度状态
   globalProgressState.current.set(uniqueCode, type);
+
+  // 如果是wait or uploading or pauseRetry 状态的话，请求判断网速
+  if (
+    [
+      UploadProgressState.Prepare,
+      UploadProgressState.Waiting,
+      UploadProgressState.Uploading,
+      UploadProgressState.PauseRetry,
+    ].includes(type)
+  )
+    computeCurrentNetworkSpeedHandler(uniqueCode);
   return baseQueueElement;
 }
 
@@ -228,19 +305,20 @@ export function emitRetryProgressState(uniqueCode: string, retryTimes: number) {
  *
  * @author lihh
  * @param uniqueCode 文件 唯一的code
- * @param step 表示每次执行步长
  */
-export function computedInnerProgressHandler(uniqueCode: string, step: number) {
+export function computedInnerProgressHandler(uniqueCode: string) {
   const infoMapping = globalInfoMapping[uniqueCode];
 
-  let innerProgress = step;
+  let innerProgress = 0;
   if (!infoMapping.has(INNER_PROGRESS_CONST))
     Logger.warning(
       strFormat("<%s> %s", uniqueCode, i18next.t(SOME_CONSTANT_VALUES.KEY10)),
     );
   else {
-    innerProgress += Number(infoMapping.get(INNER_PROGRESS_CONST));
-    infoMapping.set(INNER_PROGRESS_CONST, innerProgress + "");
+    const fileSize = globalFileSize.current.get(uniqueCode)!,
+      consumeOffset = globalConsumeOffset.current.get(uniqueCode)!;
+
+    innerProgress = toFixedHandler(consumeOffset / fileSize, 10) * 100;
   }
 
   return innerProgress;
@@ -274,18 +352,15 @@ export function emitUploadingProgressState(
  * @author lihh
  * @param type 类型
  * @param uniqueCode 唯一的值
- * @param pauseIndex 索引
  */
 export function emitPauseProgressState(
   type: UploadProgressState,
   uniqueCode: string,
-  pauseIndex: number,
 ) {
   if (isCanCommitProgressState(uniqueCode, type)) return;
 
   const baseProgressState = generateBaseProgressState(type, uniqueCode);
   if (isEmpty(baseProgressState)) return;
-  baseProgressState!.pauseIndex = pauseIndex;
 
   emitterAndTaker.emit(UPLOADING_FILE_SUBSCRIBE_DEFINE, baseProgressState);
 }
@@ -298,30 +373,6 @@ export function emitPauseProgressState(
  */
 export async function upConcurrentHandler(unit: number) {
   await sleep((Math.random() * unit) | 0);
-}
-
-/**
- * 文件大小 限制规则 check 事件
- *
- * @author lihh
- */
-export function fileSizeLimitRulesCheckHandler() {
-  // 文件大小限制
-  const limitRules = calculateUploaderConfig.current!.fileSizeLimitRules!;
-  for (const item of limitRules) {
-    if (!isArray(item)) Logger.error(i18next.t(SOME_CONSTANT_VALUES.KEY1));
-    if (!equals(item.length, 2))
-      Logger.error(i18next.t(SOME_CONSTANT_VALUES.KEY2));
-    if (!isNumber(item[0]) || !isNumber(item[1]))
-      Logger.error(i18next.t(SOME_CONSTANT_VALUES.KEY3));
-  }
-  if (limitRules.length < 2) Logger.error(i18next.t(SOME_CONSTANT_VALUES.KEY4));
-  if (limitRules.length < 5)
-    Logger.warning(i18next.t(SOME_CONSTANT_VALUES.KEY5));
-
-  fileSizeLimitRules.current = limitRules;
-  // 限制切割文件大小后 然后进行排序
-  fileSizeLimitRules.current.sort((a, b) => a[0] - b[0]);
 }
 
 /**
@@ -340,16 +391,6 @@ export function toFixedHandler(size: number, count: number) {
   const sizeArr = sizeStr.split(".");
   if (count === 0) return Number(sizeArr[0]);
   return Number(`${sizeArr[0]}.${sizeArr[1].slice(0, count)}`);
-}
-
-/**
- * 根据切割文件个数 计算步长
- *
- * @author lihh
- * @param chunkCount 文件个数
- */
-export function computedStepHandler(chunkCount: number) {
-  return toFixedHandler(100 / chunkCount, 10);
 }
 
 /**

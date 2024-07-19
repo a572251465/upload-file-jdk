@@ -66,7 +66,7 @@ emitterAndTaker.on(
         emitUploadProgressState(UploadProgressState.Canceled, uniqueCode);
         break;
       case UploadProgressState.Pause: {
-        // 是否已经被暂停了
+        // 如果是暂停重试的话 应该执行这个逻辑
         const isPaused = globalPauseStateMapping.current.get(uniqueCode);
         if (!isUndefined(isPaused))
           await restartUploadFileHandler(
@@ -105,7 +105,7 @@ emitterAndTaker.on(
       case UploadProgressState.Pause:
         // 设置暂停状态
         if (!globalPauseStateMapping.current.has(el.uniqueCode!))
-          globalPauseStateMapping.current.set(el.uniqueCode!, el.pauseIndex!);
+          globalPauseStateMapping.current.set(el.uniqueCode!, true);
     }
   },
   SubscriberSort.FIRST,

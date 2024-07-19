@@ -1,6 +1,5 @@
-import { LanguageEnumType, UploadProgressState } from "./types"; /* 上传进度状态文字 */
+import { LanguageEnumType, UploadProgressState } from "./types";
 
-/* 上传进度状态文字 */
 export const UploadProgressStateText: Record<
   Required<UploadProgressState>,
   Record<LanguageEnumType, string>
@@ -96,14 +95,8 @@ export const UploadProgressStateText: Record<
   },
 };
 
-// 表示默认的上传文件大小规范
-export const fileSizeLimitDefaultRules: Array<[number, number]> = [
-  [30, 0.5],
-  [60, 0.8],
-  [100, 1],
-  [200, 1.5],
-  [400, 2],
-];
+// 计算网络的 byte size
+export const COMPUTE_NETWORK_BYTE_SIZE = 20 * 1024;
 
 /* 上传的文件 订阅状态 */
 export const UPLOADING_FILE_SUBSCRIBE_DEFINE =
@@ -116,6 +109,16 @@ export const SERVER_REQUEST_FAIL_MSG = "fetch fail, 请检查服务";
 export const NO_MESSAGE_DEFAULT_VALUE = "未提供错误消息";
 // 表示 内部进度的固定值
 export const INNER_PROGRESS_CONST = "innerProgress";
+// 表示 消费的字节数
+export const CURRENT_CONSUME_BYTES = "currentConsumeBytes";
+// 表示 文件大小 const
+export const FILE_SIZE_CONST = "fileSize";
+// 表示 上传文件
+export const UPLOAD_FILE_CONST = "uploadFile";
+// 表示 后缀名称
+export const EXT_NAME_CONST = "extName";
+// 表示网络速度
+export const NETWORK_SPEED_CONST = "networkSpeed";
 
 // 一些固定值
 export const SOME_CONSTANT_VALUES = {
@@ -133,11 +136,6 @@ export const SOME_CONSTANT_VALUES = {
 
 // 表示 zh 语言
 export const zhLanguage: Record<string, string> = {
-  [SOME_CONSTANT_VALUES.KEY1]: "文件切割大小限制规则 元素必须是数组",
-  [SOME_CONSTANT_VALUES.KEY2]: "文件切割大小限制规则 数组只能有两个元素",
-  [SOME_CONSTANT_VALUES.KEY3]: "文件切割大小限制规则 数组的元素只能是数字",
-  [SOME_CONSTANT_VALUES.KEY4]: "文件切割大小限制规则 数组元素个数不能小于2",
-  [SOME_CONSTANT_VALUES.KEY5]: "文件切割大小限制规则 最好不要低于5个",
   [SOME_CONSTANT_VALUES.KEY6]:
     "不兼容web worker 或 未引入calculateNameWorker.js, 通过 MessageChannel 做兼容处理",
   [SOME_CONSTANT_VALUES.KEY7]: "暂时 不支持 indexedDB, 无法持久化",
@@ -148,16 +146,6 @@ export const zhLanguage: Record<string, string> = {
 
 // 表示 jp 语言
 export const jpLanguage: Record<string, string> = {
-  [SOME_CONSTANT_VALUES.KEY1]:
-    "ファイルカットサイズ制限規則要素は配列でなければなりません",
-  [SOME_CONSTANT_VALUES.KEY2]:
-    "ファイル切断サイズ制限規則配列には2つの要素しかありません",
-  [SOME_CONSTANT_VALUES.KEY3]:
-    "ファイル切断サイズ制限規則配列の要素は数値のみです",
-  [SOME_CONSTANT_VALUES.KEY4]:
-    "ファイル切断サイズ制限規則配列要素の数は2未満にすることはできません",
-  [SOME_CONSTANT_VALUES.KEY5]:
-    "ファイル切断サイズ制限規則は5つ以上にしないほうがよい",
   [SOME_CONSTANT_VALUES.KEY6]:
     "非互換WebワーカーまたはcalculateNameWorker.jsを導入せず、MessageChannelによる互換処理",
   [SOME_CONSTANT_VALUES.KEY7]:
@@ -165,21 +153,11 @@ export const jpLanguage: Record<string, string> = {
   [SOME_CONSTANT_VALUES.KEY8]:
     "進行状況はすでに完了しているので、自分で削除することができます。",
   [SOME_CONSTANT_VALUES.KEY9]: "要求方法を設定してください",
-  [SOME_CONSTANT_VALUES.KEY10]: "しばらく進行なし"
+  [SOME_CONSTANT_VALUES.KEY10]: "しばらく進行なし",
 };
 
 // 表示 en 语言
 export const enLanguage: Record<string, string> = {
-  [SOME_CONSTANT_VALUES.KEY1]:
-    "file cutting size limit rule: Elements must be arrays",
-  [SOME_CONSTANT_VALUES.KEY2]:
-    "the file cutting size limit rule array can only have two elements",
-  [SOME_CONSTANT_VALUES.KEY3]:
-    "tile cutting size limit rule: The elements of an array can only be numbers",
-  [SOME_CONSTANT_VALUES.KEY4]:
-    "file cutting size limit rule: The number of array elements cannot be less than 2",
-  [SOME_CONSTANT_VALUES.KEY5]:
-    "the file cutting size limit rule should ideally not be less than 5",
   [SOME_CONSTANT_VALUES.KEY6]:
     "incompatible with web workers or without introducing calculateNameWorker.js, compatibility is handled through the Message Channel",
   [SOME_CONSTANT_VALUES.KEY7]:
@@ -187,5 +165,5 @@ export const enLanguage: Record<string, string> = {
   [SOME_CONSTANT_VALUES.KEY8]:
     "the progress has been completed and can be deleted on your own",
   [SOME_CONSTANT_VALUES.KEY9]: "please configure the request method",
-  [SOME_CONSTANT_VALUES.KEY10]: "No progress temporarily"
+  [SOME_CONSTANT_VALUES.KEY10]: "No progress temporarily",
 };

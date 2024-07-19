@@ -19,28 +19,23 @@ declare enum UploadProgressState {
     RetryFailed = "RetryFailed",
     RefreshRetry = "RefreshRetry"
 }
-interface ChunkFileType {
-    chunk: Blob;
-    chunkFileName: string;
-}
 type QueueElementBase = Partial<{
     type: UploadProgressState;
     uniqueCode: string;
     fileSize: number;
     progress: number;
+    networkSpeed: number;
     fileName: string;
     uploadFile: File;
     retryTimes: number;
-    networkDisconnectedRetryTimes: number;
-    pauseIndex: number;
     requestErrorMsg: string;
 }>;
 type UploadConfigType = Partial<{
     maxRetryTimes: number;
     concurrentLimit: number;
     persist: boolean;
-    fileSizeLimitRules: Array<[number, number]>;
-    language?: LanguageEnumType;
+    language: LanguageEnumType;
+    maxHashNameCount: number;
 }> & {
     req: {
         listFilesReq: IListFilesReq | null;
@@ -53,6 +48,10 @@ interface CurrentType<T = null> {
     current: T;
 }
 type ProgressReturnType = [baseDir: string, fileName: string];
+declare enum LocalforageTypeEnum {
+    p1 = "p1",
+    p2 = "p2"
+}
 type ICommonResponse<T = unknown> = {
     data: T;
     message?: string;
@@ -68,18 +67,23 @@ declare enum LanguageEnumType {
     ZH = "zh",
     JA_JP = "ja_JP"
 }
-type IListFilesReq = (calculationHashCode: string) => Promise<ICommonResponse<Array<string>>>;
+type IListFilesReq = (calculationHashCode: string) => Promise<ICommonResponse<[number, number]>>;
 type ISectionUploadReq = (calculationHashCode: string, chunkFileName: string, formData: FormData) => Promise<ICommonResponse<boolean>>;
 type IMergeUploadReq = (calculationHashCode: string, fileName: string) => Promise<ICommonResponse>;
 type IVerifyFileExistReq = (calculationHashName: string) => Promise<ICommonResponse<boolean>>;
 
 declare const UploadProgressStateText: Record<Required<UploadProgressState>, Record<LanguageEnumType, string>>;
-declare const fileSizeLimitDefaultRules: Array<[number, number]>;
+declare const COMPUTE_NETWORK_BYTE_SIZE: number;
 declare const UPLOADING_FILE_SUBSCRIBE_DEFINE = "UPLOADING_FILE_SUBSCRIBE_DEFINE";
 declare const REVERSE_CONTAINER_ACTION = "REVERSE_CONTAINER_ACTION";
 declare const SERVER_REQUEST_FAIL_MSG = "fetch fail, \u8BF7\u68C0\u67E5\u670D\u52A1";
 declare const NO_MESSAGE_DEFAULT_VALUE = "\u672A\u63D0\u4F9B\u9519\u8BEF\u6D88\u606F";
 declare const INNER_PROGRESS_CONST = "innerProgress";
+declare const CURRENT_CONSUME_BYTES = "currentConsumeBytes";
+declare const FILE_SIZE_CONST = "fileSize";
+declare const UPLOAD_FILE_CONST = "uploadFile";
+declare const EXT_NAME_CONST = "extName";
+declare const NETWORK_SPEED_CONST = "networkSpeed";
 declare const SOME_CONSTANT_VALUES: {
     KEY1: string;
     KEY2: string;
@@ -147,38 +151,34 @@ declare function clearCacheStateHandler(uniqueCode: string): void;
  * @author lihh
  * @param calculationHashCode web worker 计算的code
  * @param uniqueCode 表示唯一的code
- * @param step 表示步长
  */
-declare function computedBreakPointProgressHandler(calculationHashCode: string, uniqueCode: string, step: number): Promise<number>;
+declare function computedBreakPointProgressHandler(calculationHashCode: string, uniqueCode: string): Promise<number>;
 /**
  * 分割文件 上传事件
  *
  * @author lihh
- * @param idx 开始索引
  * @param uniqueCode 唯一的code
  * @param calculationHashCode web worker 计算的hashCode
- * @param chunks 分割的文件
+ * @param idx 索引的值
  * @param retryTimes 重试次数
  */
-declare function splitFileUploadingHandler(idx: number, uniqueCode: string, calculationHashCode: string, chunks: Array<ChunkFileType>, retryTimes?: number): Promise<void>;
+declare function splitFileUploadingHandler(uniqueCode: string, calculationHashCode: string, idx: number, retryTimes?: number): Promise<void>;
 /**
  * 表示生成任务
  *
  * @author lihh
  * @param calculationHashCode 通过 webWorker 计算的hash值
  * @param uniqueCode 唯一的值
- * @param chunks 分割的文件
  */
-declare function generateTask(calculationHashCode: string, uniqueCode: string, chunks: Array<ChunkFileType>): Promise<void>;
+declare function generateTask(calculationHashCode: string, uniqueCode: string): Promise<void>;
 /**
  * 开始上传文件
  *
  * @author lihh
- * @param file 要上传的文件
  * @param calculationHashName 通过web worker 计算的hash名称
  * @param uniqueCode 生成的唯一 code
  */
-declare function startUploadFileHandler(file: File, calculationHashName: string, uniqueCode: string): Promise<void>;
+declare function startUploadFileHandler(calculationHashName: string, uniqueCode: string): Promise<void>;
 /**
  * 表示上传的事件
  *
@@ -190,7 +190,6 @@ declare function uploadHandler(uploadFile: File, callback?: (arr: ProgressReturn
 declare namespace uploadHandler {
     var config: (config: UploadConfigType) => void;
     var lng: (language?: LanguageEnumType) => Promise<void>;
-    var dynamicFileSizeLimitRules: (limitRules: Array<[number, number]>) => void;
 }
 
-export { type ChunkFileType, type CurrentType, HTTPEnumState, type ICommonResponse, type IListFilesReq, type IMergeUploadReq, INNER_PROGRESS_CONST, type ISectionUploadReq, type IVerifyFileExistReq, LanguageEnumType, NO_MESSAGE_DEFAULT_VALUE, type ProgressReturnType, type QueueElementBase, REVERSE_CONTAINER_ACTION, SERVER_REQUEST_FAIL_MSG, SOME_CONSTANT_VALUES, UPLOADING_FILE_SUBSCRIBE_DEFINE, type UploadConfigType, UploadProgressState, UploadProgressStateText, clearCacheStateHandler, computedBreakPointProgressHandler, enLanguage, fileSizeLimitDefaultRules, generateTask, getLng, jpLanguage, progressNormalOrErrorCompletionHandler, restartUploadFileHandler, sameFileNeedProceedHandler, splitFileUploadingHandler, startUploadFileHandler, toFixedHandler, uploadHandler, zhLanguage };
+export { COMPUTE_NETWORK_BYTE_SIZE, CURRENT_CONSUME_BYTES, type CurrentType, EXT_NAME_CONST, FILE_SIZE_CONST, HTTPEnumState, type ICommonResponse, type IListFilesReq, type IMergeUploadReq, INNER_PROGRESS_CONST, type ISectionUploadReq, type IVerifyFileExistReq, LanguageEnumType, LocalforageTypeEnum, NETWORK_SPEED_CONST, NO_MESSAGE_DEFAULT_VALUE, type ProgressReturnType, type QueueElementBase, REVERSE_CONTAINER_ACTION, SERVER_REQUEST_FAIL_MSG, SOME_CONSTANT_VALUES, UPLOADING_FILE_SUBSCRIBE_DEFINE, UPLOAD_FILE_CONST, type UploadConfigType, UploadProgressState, UploadProgressStateText, clearCacheStateHandler, computedBreakPointProgressHandler, enLanguage, generateTask, getLng, jpLanguage, progressNormalOrErrorCompletionHandler, restartUploadFileHandler, sameFileNeedProceedHandler, splitFileUploadingHandler, startUploadFileHandler, toFixedHandler, uploadHandler, zhLanguage };

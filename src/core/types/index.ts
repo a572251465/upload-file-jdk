@@ -36,12 +36,6 @@ export enum UploadProgressState {
   RefreshRetry = "RefreshRetry",
 }
 
-/* 分割文件类型 */
-export interface ChunkFileType {
-  chunk: Blob;
-  chunkFileName: string;
-}
-
 /* 队列元素 */
 export type QueueElementBase = Partial<{
   // 类型
@@ -52,16 +46,14 @@ export type QueueElementBase = Partial<{
   fileSize: number;
   // 这个 client 显示的进度
   progress: number;
+  // 表示 网络速度
+  networkSpeed: number;
   // 文件名称
   fileName: string;
   // 表示上传的文件
   uploadFile: File;
   // 重试次数
   retryTimes: number;
-  // 网络掉线 重试次数
-  networkDisconnectedRetryTimes: number;
-  // 暂停索引 -1 == 合并中
-  pauseIndex: number;
   // 表示请求错误消息
   requestErrorMsg: string;
 }>;
@@ -74,10 +66,10 @@ export type UploadConfigType = Partial<{
   concurrentLimit: number;
   // 是否持久化
   persist: boolean;
-  // 文件限制大小规则
-  fileSizeLimitRules: Array<[number, number]>;
   // 表示语言类型
-  language?: LanguageEnumType;
+  language: LanguageEnumType;
+  // 最大缓存 hash 数
+  maxHashNameCount: number;
 }> & {
   // 请求接口
   req: {
@@ -95,6 +87,12 @@ export interface CurrentType<T = null> {
 
 // 表示返回类型
 export type ProgressReturnType = [baseDir: string, fileName: string];
+
+// localforage 持久化枚举类型
+export enum LocalforageTypeEnum {
+  p1 = "p1",
+  p2 = "p2",
+}
 
 // 表示 请求响应类型
 export type ICommonResponse<T = unknown> = {
@@ -120,7 +118,8 @@ export enum LanguageEnumType {
 // 表示接口类型
 export type IListFilesReq = (
   calculationHashCode: string,
-) => Promise<ICommonResponse<Array<string>>>;
+  // [number, number] length, consumeSize
+) => Promise<ICommonResponse<[number, number]>>;
 export type ISectionUploadReq = (
   calculationHashCode: string,
   chunkFileName: string,
