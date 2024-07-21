@@ -6,6 +6,8 @@ export enum UploadProgressState {
   HashCalculationWaiting = "HashCalculationWaiting",
   // 上传等待中 目的是为了并发控制
   Waiting = "Waiting",
+  // 等待添加到队列中
+  WaitAddQueue = "WaitAddQueue",
   // 上传中
   Uploading = "Uploading",
   // 表示合并文件中

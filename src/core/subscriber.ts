@@ -97,6 +97,7 @@ emitterAndTaker.on(
             el.type,
           )
         )
+          // 处理其他相同的文件
           await sameFileNeedProceedHandler(el.uniqueCode!);
 
         progressNormalOrErrorCompletionHandler(el);

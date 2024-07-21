@@ -4,6 +4,7 @@ declare enum UploadProgressState {
     Prepare = "Prepare",
     HashCalculationWaiting = "HashCalculationWaiting",
     Waiting = "Waiting",
+    WaitAddQueue = "WaitAddQueue",
     Uploading = "Uploading",
     Merge = "Merge",
     Done = "Done",
@@ -164,13 +165,13 @@ declare function computedBreakPointProgressHandler(calculationHashCode: string, 
  */
 declare function splitFileUploadingHandler(uniqueCode: string, calculationHashCode: string, idx: number, retryTimes?: number): Promise<void>;
 /**
- * 表示生成任务
+ * 开始执行任务
  *
  * @author lihh
  * @param calculationHashCode 通过 webWorker 计算的hash值
  * @param uniqueCode 唯一的值
  */
-declare function generateTask(calculationHashCode: string, uniqueCode: string): Promise<void>;
+declare function startUploadFileNextHandler(calculationHashCode: string, uniqueCode: string): Promise<void>;
 /**
  * 开始上传文件
  *
@@ -179,6 +180,13 @@ declare function generateTask(calculationHashCode: string, uniqueCode: string): 
  * @param uniqueCode 生成的唯一 code
  */
 declare function startUploadFileHandler(calculationHashName: string, uniqueCode: string): Promise<void>;
+/**
+ * 这里生成任务 能让任务处理等待状态
+ *
+ * @author lihh
+ * @param uniqueCode 每个文件对应 唯一的值
+ */
+declare function generatorTask(uniqueCode: string): void;
 /**
  * 表示上传的事件
  *
@@ -192,4 +200,4 @@ declare namespace uploadHandler {
     var lng: (language?: LanguageEnumType) => Promise<void>;
 }
 
-export { COMPUTE_NETWORK_BYTE_SIZE, CURRENT_CONSUME_BYTES, type CurrentType, EXT_NAME_CONST, FILE_SIZE_CONST, HTTPEnumState, type ICommonResponse, type IListFilesReq, type IMergeUploadReq, INNER_PROGRESS_CONST, type ISectionUploadReq, type IVerifyFileExistReq, LanguageEnumType, LocalforageTypeEnum, NETWORK_SPEED_CONST, NO_MESSAGE_DEFAULT_VALUE, type ProgressReturnType, type QueueElementBase, REVERSE_CONTAINER_ACTION, SERVER_REQUEST_FAIL_MSG, SOME_CONSTANT_VALUES, UPLOADING_FILE_SUBSCRIBE_DEFINE, UPLOAD_FILE_CONST, type UploadConfigType, UploadProgressState, UploadProgressStateText, clearCacheStateHandler, computedBreakPointProgressHandler, enLanguage, generateTask, getLng, jpLanguage, progressNormalOrErrorCompletionHandler, restartUploadFileHandler, sameFileNeedProceedHandler, splitFileUploadingHandler, startUploadFileHandler, toFixedHandler, uploadHandler, zhLanguage };
+export { COMPUTE_NETWORK_BYTE_SIZE, CURRENT_CONSUME_BYTES, type CurrentType, EXT_NAME_CONST, FILE_SIZE_CONST, HTTPEnumState, type ICommonResponse, type IListFilesReq, type IMergeUploadReq, INNER_PROGRESS_CONST, type ISectionUploadReq, type IVerifyFileExistReq, LanguageEnumType, LocalforageTypeEnum, NETWORK_SPEED_CONST, NO_MESSAGE_DEFAULT_VALUE, type ProgressReturnType, type QueueElementBase, REVERSE_CONTAINER_ACTION, SERVER_REQUEST_FAIL_MSG, SOME_CONSTANT_VALUES, UPLOADING_FILE_SUBSCRIBE_DEFINE, UPLOAD_FILE_CONST, type UploadConfigType, UploadProgressState, UploadProgressStateText, clearCacheStateHandler, computedBreakPointProgressHandler, enLanguage, generatorTask, getLng, jpLanguage, progressNormalOrErrorCompletionHandler, restartUploadFileHandler, sameFileNeedProceedHandler, splitFileUploadingHandler, startUploadFileHandler, startUploadFileNextHandler, toFixedHandler, uploadHandler, zhLanguage };

@@ -5,7 +5,7 @@ import {
   UploadConfigType,
   UploadProgressState,
 } from "./types";
-import { IPLimitC } from "jsmethod-extra";
+import { IPLimitC } from "./PLimit";
 import { COMPUTE_NETWORK_BYTE_SIZE } from "./constant";
 
 export const pLimit: CurrentType<IPLimitC | null> = {
@@ -13,7 +13,7 @@ export const pLimit: CurrentType<IPLimitC | null> = {
 };
 // 表示 默认的配置文件
 export const uploaderDefaultConfig: Required<UploadConfigType> = {
-  concurrentLimit: 3,
+  concurrentLimit: 2,
   maxRetryTimes: 3,
   persist: false,
   maxHashNameCount: 200,
@@ -34,6 +34,26 @@ export const channel = new MessageChannel();
 export const calculateUploaderConfig: CurrentType<UploadConfigType | null> = {
   current: null,
 };
+// 全局的 done callback
+export const globalPLimitDoneSuccessCallback: CurrentType<
+  Map<string, () => void>
+> = {
+  current: new Map(),
+};
+// 计算网速 将要发送的任务
+export const calculateEmitNetworkSpeedTasks: CurrentType<
+  Array<[string, (uniqueCode: string) => Promise<void>]>
+> = {
+  current: [],
+};
+// 表示 递归的值
+export const globalNextCount: CurrentType<number> = {
+  current: 0,
+};
+// 表示 是否第一次请求网速
+export const isFirstRequestNetworkSpeed: CurrentType<boolean> = {
+  current: true,
+};
 // 表示 上传进度的状态
 export const globalProgressState: CurrentType<
   Map<string, UploadProgressState>
@@ -52,6 +72,10 @@ export const globalDoneCallbackMapping: CurrentType<
   >
 > = {
   current: new Map(),
+};
+// 表示是否计算 hash 名称中
+export const isComputeFileHashName: CurrentType<boolean> = {
+  current: false,
 };
 // 表示 全局信息
 export const globalInfoMapping: Record<string, Map<string, string>> = {};

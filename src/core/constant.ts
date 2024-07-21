@@ -9,6 +9,11 @@ export const UploadProgressStateText: Record<
     [LanguageEnumType.EN]: "in preparation",
     [LanguageEnumType.JA_JP]: "準備中",
   },
+  [UploadProgressState.WaitAddQueue]: {
+    [LanguageEnumType.ZH]: "等待添加队列中",
+    [LanguageEnumType.EN]: "waiting to be added to the queue",
+    [LanguageEnumType.JA_JP]: "キューの追加待ち",
+  },
   [UploadProgressState.HashCalculationWaiting]: {
     [LanguageEnumType.ZH]: "计算文件大小",
     [LanguageEnumType.EN]: "calculate file size",

@@ -4,14 +4,15 @@ import {
   isEmpty,
   isFunction,
   isHas,
+  isMap,
   isNotEmpty,
   isNumber,
   isString,
-  PLimit,
   sleep,
   valueOrDefault,
 } from "jsmethod-extra";
 import {
+  calculateEmitNetworkSpeedTasks,
   calculateNameWorker,
   calculateUploaderConfig,
   channel,
@@ -28,6 +29,7 @@ import {
   emitUploadProgressState,
   EXT_NAME_CONST,
   FILE_SIZE_CONST,
+  firingDoneCallbackHandler,
   generateUniqueCode,
   getFileValuesHandler,
   globalConsumeOffset,
@@ -35,15 +37,19 @@ import {
   globalFileSize,
   globalInfoMapping,
   globalPauseStateMapping,
+  globalPLimitDoneSuccessCallback,
   globalProgressState,
   globalWaitingHashCalculationQueue,
   ICommonResponse,
   INNER_PROGRESS_CONST,
   isCallConfigMethod,
+  isComputeFileHashName,
+  isFirstRequestNetworkSpeed,
   LanguageEnumType,
   Logger,
   NETWORK_SPEED_CONST,
   pLimit,
+  PLimit,
   ProgressReturnType,
   putGlobalInfoMappingHandler,
   QueueElementBase,
@@ -52,7 +58,6 @@ import {
   SERVER_REQUEST_FAIL_MSG,
   SOME_CONSTANT_VALUES,
   StoreFactory,
-  upConcurrentHandler,
   UPLOAD_FILE_CONST,
   UploadConfigType,
   uploaderDefaultConfig,
@@ -116,7 +121,6 @@ channel.port2.onmessage = async function (event) {
   const { fileName: name } = event.data;
 
   const suffix = `${name.slice(name.indexOf("."))}`;
-  await upConcurrentHandler(100);
 
   const getNameHandler = () =>
       `${(Math.random() * 100000) | 0}${+new Date()}${(Math.random() * 100000) | 0}`,
@@ -144,10 +148,12 @@ export async function sameFileNeedProceedHandler(uniqueCode: string) {
   const newUniqueCodeValues = uniqueCodeValues!.filter(
     (code) => !equals(code, uniqueCode),
   );
-  // 等待的状态 批量上传
-  newUniqueCodeValues!.forEach((code) =>
-    restartUploadFileHandler(code, UploadProgressState.Waiting),
-  );
+
+  // 先删除缓存 也是为了避免重复添加
+  sameFileUploadStateMapping.current.delete(calculationHashName);
+  // 等待的状态 等待批量完成
+  for (const code of newUniqueCodeValues)
+    emitUploadProgressState(UploadProgressState.QuickUpload, code);
 }
 
 /**
@@ -193,7 +199,13 @@ export function progressNormalOrErrorCompletionHandler(el: QueueElementBase) {
  */
 export function clearCacheStateHandler(uniqueCode: string) {
   // 如果有 file 上传完成 重新请求网络
-  computeCurrentNetworkSpeedHandler(uniqueCode, true);
+  calculateEmitNetworkSpeedTasks.current.push([
+    uniqueCode,
+    computeCurrentNetworkSpeedHandler,
+  ]);
+  // 一旦有任务完成的话, 直接执行done 方法
+  const doneCallback = globalPLimitDoneSuccessCallback.current.get(uniqueCode);
+  if (isFunction(doneCallback)) doneCallback();
 
   // 删除缓存数据
   Reflect.deleteProperty(globalInfoMapping, uniqueCode);
@@ -202,6 +214,7 @@ export function clearCacheStateHandler(uniqueCode: string) {
   globalConsumeOffset.current.delete(uniqueCode);
   globalFileSize.current.delete(uniqueCode);
   globalPauseStateMapping.current.delete(uniqueCode);
+  globalPLimitDoneSuccessCallback.current.delete(uniqueCode);
 }
 
 /**
@@ -270,6 +283,7 @@ function isCanNextExecute(uniqueCode: string) {
     UploadProgressState.PauseRetry,
     UploadProgressState.BreakPointUpload,
     UploadProgressState.RefreshRetry,
+    UploadProgressState.HashCalculationWaiting,
   ].includes(globalProgressState.current.get(uniqueCode)!);
 }
 
@@ -312,7 +326,21 @@ export async function splitFileUploadingHandler(
     isCanNextExecute(uniqueCode);
 
   ) {
-    await upConcurrentHandler(100);
+    // 从这里处理 请求任务中 是否有待处理任务
+    if (calculateEmitNetworkSpeedTasks.current.length > 0) {
+      await sleep(300);
+
+      // 双重检测
+      if (calculateEmitNetworkSpeedTasks.current.length > 0) {
+        // 从队列中拿任务
+        const [uniqueCode, computeCurrentNetworkSpeedHandler] =
+          calculateEmitNetworkSpeedTasks.current[0];
+        // 从这里请求网速
+        await computeCurrentNetworkSpeedHandler(uniqueCode);
+        calculateEmitNetworkSpeedTasks.current.length = 0;
+      }
+    }
+
     // 从这里拿到网速
     const networkSpeed = currentInternetSpeed.current,
       newConsumeOffset = consumeOffset + networkSpeed;
@@ -396,20 +424,30 @@ export async function splitFileUploadingHandler(
 }
 
 /**
- * 表示生成任务
+ * 开始执行任务
  *
  * @author lihh
  * @param calculationHashCode 通过 webWorker 计算的hash值
  * @param uniqueCode 唯一的值
  */
-export async function generateTask(
+export async function startUploadFileNextHandler(
   calculationHashCode: string,
   uniqueCode: string,
 ) {
   // 如果是异常状态，就没必要往下走了
   if (isNeedInterrupt(uniqueCode)) return;
+
+  // 判断是否第一次请求网速
+  if (isFirstRequestNetworkSpeed.current) {
+    await computeCurrentNetworkSpeedHandler(uniqueCode, true);
+    isFirstRequestNetworkSpeed.current = false;
+  }
   // 当一个任务添加进来后，重新请求网络
-  computeCurrentNetworkSpeedHandler(uniqueCode, true);
+  else
+    calculateEmitNetworkSpeedTasks.current.push([
+      uniqueCode,
+      computeCurrentNetworkSpeedHandler,
+    ]);
 
   let idx = 0;
   // 判断是否为 暂停重试
@@ -523,15 +561,7 @@ export async function startUploadFileHandler(
   }
 
   const calculationHashCode = calculationHashName.split(".").shift()!;
-  // 开始生成任务
-  const task = generateTask.bind(null, calculationHashCode, uniqueCode);
-
-  // 添加并且发射任务, 每次添加一个文件，就会发射文件
-  if (!pLimit.current)
-    pLimit.current = PLimit.getInstance(
-      calculateUploaderConfig.current!.concurrentLimit!,
-    );
-  pLimit.current!.firingTask(task);
+  await startUploadFileNextHandler(calculationHashCode, uniqueCode);
 }
 
 /**
@@ -562,40 +592,57 @@ function sameFileUploadingHandler(
  * 计算 hash 名称的事件
  *
  * @author lihh
- * @param uploadFile 上传的文件
  * @param uniqueCode 唯一的code
+ * @param doneCallback 表示成功的回调
  */
-async function calculationHashNameHandler(
-  uploadFile: File,
+function calculationHashNameHandler(
   uniqueCode: string,
+  doneCallback: () => void,
 ) {
-  // 修改状态为 等待状态
-  if (
-    !emitUploadProgressState(
-      UploadProgressState.HashCalculationWaiting,
-      uniqueCode,
+  Promise.resolve().then(async function () {
+    const map = globalInfoMapping[uniqueCode];
+    if (!isMap(map)) return doneCallback();
+
+    // 表示上传的文件
+    const uploadFile = map.get(UPLOAD_FILE_CONST) as unknown as File;
+    // 添加成功 回调
+    globalPLimitDoneSuccessCallback.current.set(uniqueCode, doneCallback);
+
+    // 修改状态为 等待状态
+    if (
+      !emitUploadProgressState(
+        UploadProgressState.HashCalculationWaiting,
+        uniqueCode,
+      )
     )
-  )
-    return;
+      return;
 
-  // 从缓存中 拿到hashName
-  const calculationHashName = await getItemHandler(
-    getFileValuesHandler(uploadFile) as unknown as object,
-    StoreFactory.p2,
-  );
-  if (isNotEmpty(calculationHashName)) {
-    await eventChangeCallbackHandler(uniqueCode, calculationHashName as string);
-    return;
-  }
+    // 从缓存中 拿到hashName
+    const calculationHashName = await getItemHandler(
+      getFileValuesHandler(uploadFile) as unknown as object,
+      StoreFactory.p2,
+    );
+    if (isNotEmpty(calculationHashName)) {
+      await eventChangeCallbackHandler(
+        uniqueCode,
+        calculationHashName as string,
+      );
+      return;
+    }
 
-  // 判断队列是否为空
-  if (isEmpty(globalWaitingHashCalculationQueue.current)) {
-    // 直接运行
-    asyncWebWorkerActionHandler(uploadFile, uniqueCode);
-  } else {
-    // 添加到队列中
-    globalWaitingHashCalculationQueue.current.push([uploadFile, uniqueCode]);
-  }
+    // 判断队列是否为空 && 是否在计算hash名称
+    if (
+      isEmpty(globalWaitingHashCalculationQueue.current) &&
+      !isComputeFileHashName.current
+    ) {
+      isComputeFileHashName.current = true;
+      // 直接运行
+      asyncWebWorkerActionHandler(uploadFile, uniqueCode);
+    } else {
+      // 添加到队列中
+      globalWaitingHashCalculationQueue.current.push([uploadFile, uniqueCode]);
+    }
+  });
 }
 
 /**
@@ -651,7 +698,10 @@ async function eventChangeCallbackHandler(
   uniqueCode: string,
   event: MessageEvent<string> | string,
 ) {
-  // 开始尝试 计算新的
+  // 执行到这里，表示hash 名称 计算成功
+  isComputeFileHashName.current = false;
+
+  // 从队列中 获取新的值，将并行 修改为 串行
   wakeupNewQueueElementHandler();
 
   const calculationHashName = isString(event) ? event : event.data;
@@ -676,13 +726,14 @@ async function eventChangeCallbackHandler(
     );
 
     emitUploadProgressState(UploadProgressState.OtherUploading, uniqueCode);
+
+    // 如果有其他相同上传文件，这个文件直接算是成功
+    firingDoneCallbackHandler(uniqueCode);
     return;
   }
   // 相同文件 处理
   sameFileUploadingHandler(calculationHashName, uniqueCode);
 
-  // 修改状态为 等待状态
-  if (!emitUploadProgressState(UploadProgressState.Waiting, uniqueCode)) return;
   // 开始上传文件
   await startUploadFileHandler(calculationHashName, uniqueCode);
 }
@@ -712,6 +763,31 @@ function asyncWebWorkerActionHandler(uploadFile: File, uniqueCode: string) {
     // 使用 MessageChannel 来兼容 web Worker
     channel.port1.onmessage = eventChangeCallbackHandler.bind(null, uniqueCode);
   }
+}
+
+/**
+ * 这里生成任务 能让任务处理等待状态
+ *
+ * @author lihh
+ * @param uniqueCode 每个文件对应 唯一的值
+ */
+export function generatorTask(uniqueCode: string) {
+  // 修改状态为 等待状态
+  if (!emitUploadProgressState(UploadProgressState.Waiting, uniqueCode)) return;
+
+  // 从这里生成任务
+  (
+    calculationHashNameHandler as unknown as {
+      flag: string;
+    }
+  ).flag = uniqueCode;
+  const task = calculationHashNameHandler.bind(null, uniqueCode);
+  // 添加并且发射任务, 每次添加一个文件，就会发射文件
+  if (!pLimit.current)
+    pLimit.current = PLimit.getInstance(
+      calculateUploaderConfig.current!.concurrentLimit!,
+    );
+  pLimit.current!.firingTask(task);
 }
 
 /**
@@ -765,8 +841,8 @@ export function uploadHandler(
     if (!emitUploadProgressState(UploadProgressState.Prepare, uniqueCode))
       return;
 
-    // 计算 hash 名称的事件
-    await calculationHashNameHandler(uploadFile, uniqueCode);
+    // 生成新任务
+    generatorTask(uniqueCode);
   });
 }
 
@@ -835,9 +911,7 @@ uploadHandler.lng = async function (language?: LanguageEnumType) {
   for (const key of allKeys) {
     /* 修改状态 */
     emitUploadProgressState(UploadProgressState.RefreshRetry, key);
-    /* 重新提交事件 */
-    const map = globalInfoMapping[key]!,
-      calculationHashName = map.get("calculationHashName")!;
-    await startUploadFileHandler(calculationHashName, key);
+    // 重新执行 生成任务
+    generatorTask(key);
   }
 })();

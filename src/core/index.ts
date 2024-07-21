@@ -5,3 +5,4 @@ export * from "./types";
 export * from "./subscriber";
 export * from "./tools";
 export * from "./store";
+export * from "./PLimit";

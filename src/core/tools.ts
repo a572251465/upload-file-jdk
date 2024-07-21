@@ -2,6 +2,7 @@ import {
   emitterAndTaker,
   equals,
   isEmpty,
+  isFunction,
   isHas,
   isMap,
   isNotEmpty,
@@ -17,12 +18,15 @@ import {
   UploadProgressState,
 } from "./types";
 import {
+  calculateEmitNetworkSpeedTasks,
   calculateNameWorker,
   calculateUploaderConfig,
   currentInternetSpeed,
   globalConsumeOffset,
   globalFileSize,
   globalInfoMapping,
+  globalNextCount,
+  globalPLimitDoneSuccessCallback,
   globalProgressState,
   prevComputeNetworkSpeedInterval,
 } from "./variable";
@@ -76,15 +80,7 @@ export function getFileValuesHandler(file: File): string {
 export function computeCurrentUploadingCountHandler(): number {
   let count = 0;
   for (const val of globalProgressState.current.values())
-    count += [
-      UploadProgressState.Uploading,
-      UploadProgressState.Merge,
-      UploadProgressState.BreakPointUpload,
-      UploadProgressState.PauseRetry,
-      UploadProgressState.RefreshRetry,
-    ].includes(val)
-      ? 1
-      : 0;
+    count += [UploadProgressState.Uploading].includes(val) ? 1 : 0;
 
   // 最少是 一个
   return Math.max(count, 1);
@@ -103,10 +99,13 @@ export async function computeCurrentNetworkSpeedHandler(
 ) {
   // 表示 开始时间
   const startTime = +new Date();
-  // 保证每次间隔最起码在1s以上
+  // 等待时间
+  const waitTiming = currentInternetSpeed.current < 500 * 1024 ? 2000 : 5000;
+
+  // 保证每次间隔最起码在5s以上
   if (
     !forceUpdate &&
-    startTime - prevComputeNetworkSpeedInterval.current < 3000
+    startTime - prevComputeNetworkSpeedInterval.current < waitTiming
   )
     return;
 
@@ -200,7 +199,7 @@ export function putGlobalInfoMappingHandler(...args: Array<unknown>) {
  * @author lihh
  */
 export function generateUniqueCode() {
-  return `${+new Date()}_${(Math.random() * 100000) | 0}_${(Math.random() * 10000000) | 0}`;
+  return `upload_big_file_next_${(Math.random() * 1000000) | 0}_${globalNextCount.current++}`;
 }
 
 /**
@@ -255,16 +254,22 @@ export function generateBaseProgressState(
   // 设置全局的进度状态
   globalProgressState.current.set(uniqueCode, type);
 
-  // 如果是wait or uploading or pauseRetry 状态的话，请求判断网速
+  // 但凡 牵扯到可能请求记录发生变化时，都要重新请求网速
   if (
     [
-      UploadProgressState.Prepare,
-      UploadProgressState.Waiting,
       UploadProgressState.Uploading,
+      UploadProgressState.Pause,
       UploadProgressState.PauseRetry,
+      UploadProgressState.Canceled,
+      UploadProgressState.RequestError,
+      UploadProgressState.RetryFailed,
     ].includes(type)
   )
-    computeCurrentNetworkSpeedHandler(uniqueCode);
+    // 如果是上传状态的时，不需要重试状态
+    calculateEmitNetworkSpeedTasks.current.push([
+      uniqueCode,
+      computeCurrentNetworkSpeedHandler,
+    ]);
   return baseQueueElement;
 }
 
@@ -411,6 +416,21 @@ export function emitPauseProgressState(
  */
 export async function upConcurrentHandler(unit: number) {
   await sleep((Math.random() * unit) | 0);
+}
+
+/**
+ * 发射 done 成功的回调
+ *
+ * @author lihh
+ * @param uniqueCode 表示唯一的值
+ */
+export function firingDoneCallbackHandler(uniqueCode: string) {
+  const doneCallback = globalPLimitDoneSuccessCallback.current.get(uniqueCode);
+  if (!isFunction(doneCallback)) return;
+
+  // 删除多余 doneCallback
+  globalPLimitDoneSuccessCallback.current.delete(uniqueCode);
+  doneCallback();
 }
 
 /**
