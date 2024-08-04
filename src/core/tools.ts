@@ -124,7 +124,7 @@ export async function computeCurrentNetworkSpeedHandler(
   try {
     await calculateUploaderConfig.current!.req.sectionUploadReq!(
       calculationHashCode,
-      `${calculationHashCode}_1`,
+      `${calculationHashCode}.mp4-1`,
       formData,
     );
 
