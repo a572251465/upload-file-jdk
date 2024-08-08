@@ -64,6 +64,8 @@ export type QueueElementBase = Partial<{
 export type UploadConfigType = Partial<{
   // 最大重试次数
   maxRetryTimes: number;
+  // 表示 基础网速
+  baseNetworkSpeed: number,
   // 并发限制次数
   concurrentLimit: number;
   // 是否持久化

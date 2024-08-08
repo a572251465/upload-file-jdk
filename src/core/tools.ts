@@ -134,13 +134,15 @@ export async function computeCurrentNetworkSpeedHandler(
     const duration = (endTime - startTime) / 1000;
 
     // 最少保证20k 上传速度
-    currentInternetSpeed.current = Math.max(
-      toFixedHandler(
-        computedSize / duration / computeCurrentUploadingCountHandler(),
-        0,
-      ),
-      COMPUTE_NETWORK_BYTE_SIZE,
-    );
+    currentInternetSpeed.current =
+      Math.max(
+        toFixedHandler(
+          computedSize / duration / computeCurrentUploadingCountHandler(),
+          0,
+        ),
+        COMPUTE_NETWORK_BYTE_SIZE,
+      ) +
+      calculateUploaderConfig.current!.baseNetworkSpeed! * 1024;
   } catch (e) {
     Logger.error(e as string, false);
   } finally {

@@ -17,6 +17,7 @@ export const uploaderDefaultConfig: Required<UploadConfigType> = {
   maxRetryTimes: 3,
   persist: false,
   maxHashNameCount: 200,
+  baseNetworkSpeed: 1024,
   language: LanguageEnumType.ZH,
   req: {
     listFilesReq: null,

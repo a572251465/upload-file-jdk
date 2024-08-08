@@ -858,6 +858,16 @@ uploadHandler.config = function (config: UploadConfigType) {
     {},
   );
 
+  // 这里针对网速进行校验
+  let baseNetworkSpeed = config.baseNetworkSpeed!;
+  // 限制非数字  以及 小于 1024kb 的网速
+  if (!isNumber(baseNetworkSpeed) || baseNetworkSpeed < 1024)
+    baseNetworkSpeed = (((baseNetworkSpeed / 1024) | 0) + 1) * 1024;
+  // 网速 不能高于 6M
+  const CONST_SIZE_6M = 6 * 1024;
+  if (baseNetworkSpeed > CONST_SIZE_6M) baseNetworkSpeed = CONST_SIZE_6M;
+  config.baseNetworkSpeed = baseNetworkSpeed;
+
   // 全局设置 配置文件
   calculateUploaderConfig.current = Object.assign(
     {},
