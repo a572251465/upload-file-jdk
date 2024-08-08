@@ -33,6 +33,7 @@ type QueueElementBase = Partial<{
 }>;
 type UploadConfigType = Partial<{
     maxRetryTimes: number;
+    baseNetworkSpeed: number;
     concurrentLimit: number;
     persist: boolean;
     language: LanguageEnumType;
