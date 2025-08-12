@@ -120,7 +120,7 @@ export async function restartUploadFileHandler(
 channel.port2.onmessage = async function (event) {
   const { fileName: name } = event.data;
 
-  const suffix = `${name.slice(name.indexOf("."))}`;
+  const suffix = name.split(".").pop();
 
   const getNameHandler = () =>
       `${(Math.random() * 100000) | 0}${+new Date()}${(Math.random() * 100000) | 0}`,
